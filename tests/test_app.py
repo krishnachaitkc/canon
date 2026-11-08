@@ -8,6 +8,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import app as canon_app
+from canon.issues import build_cards
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app.py"
@@ -79,14 +80,14 @@ def test_a_bad_key_is_shown_as_a_readable_card(monkeypatch):
 
     monkeypatch.setattr("canon.pipeline.run", bad_key)
     at = AppTest.from_file(str(APP), default_timeout=180).run()
-    at.radio(key="input_mode").set_value("Try the sample show")
+    at.radio(key="input_mode").set_value("Sample show")
     at.radio(key="model_choice").set_value("DeepSeek")
     at.button(key="run_button").click().run()
 
     assert not at.exception
     assert any("rejected the API key" in error.value for error in at.error)
     assert any("What to do next" in markdown.value for markdown in at.markdown)
-    assert any("Code only" in markdown.value for markdown in at.markdown)
+    assert any("DeepSeek" in markdown.value for markdown in at.markdown)
     assert at.session_state["canon_error"]["title"] == (
         "The model provider rejected the API key"
     )
@@ -169,8 +170,8 @@ def test_the_app_survives_a_build_without_progress_reporting(monkeypatch):
     monkeypatch.delattr(llm, "set_progress", raising=False)
 
     at = AppTest.from_file(str(APP), default_timeout=180).run()
-    at.radio(key="input_mode").set_value("Try the sample show")
-    at.radio(key="model_choice").set_value("Code only")
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
     at.button(key="run_button").click().run()
 
     assert not at.exception
@@ -178,35 +179,151 @@ def test_the_app_survives_a_build_without_progress_reporting(monkeypatch):
     assert at.session_state["canon_run"]["manifest"]["complete"] is True
 
 
-def test_the_app_runs_the_sample_offline_and_shows_tiles_and_tabs():
+def _click(at, label: str):
+    button = next(item for item in at.button if item.label.startswith(label))
+    return button.click()
+
+
+def test_the_home_page_offers_the_one_click_sample():
     at = AppTest.from_file(str(APP), default_timeout=180).run()
-    at.radio(key="input_mode").set_value("Try the sample show")
-    at.radio(key="model_choice").set_value("Code only")
+
+    assert "Try the sample now" in [button.label for button in at.button]
+    _click(at, "Try the sample now").run(timeout=180)
+
+    assert not at.exception
+    assert not at.error
+    assert at.session_state["page"] == "Review"
+    assert at.session_state["canon_run"]["checker"] == "Recorded AI"
+    assert at.session_state["canon_run"]["manifest"]["complete"] is True
+
+    # The demo uses the sample's recorded AI answers, so the one-click fix has work to do.
+    fix_all = next(item for item in at.button if item.label.startswith("✓ Fix all ready"))
+    assert not fix_all.disabled
+    assert fix_all.label != "✓ Fix all ready (0 places)"
+    fix_all.click().run(timeout=180)
+    assert not at.exception
+    run_id = at.session_state["canon_run"]["run_id"]
+    ticked = [key for key in at.session_state if str(key).startswith(f"fix|{run_id}|") and at.session_state[key]]
+    assert ticked
+
+
+def test_the_app_runs_the_sample_offline_and_shows_cards_and_metrics():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
     at.button(key="run_button").click().run()
 
     assert not at.exception
     assert not at.error
-    assert [(m.label, m.value) for m in at.metric] == [
-        ("Audible", "11"),
-        ("Voice", "3"),
-        ("Visible", "3"),
-        ("Notes", "1"),
-        ("Episodes affected", "4"),
-    ]
-    assert [tab.label for tab in at.tabs] == [
-        "Names",
-        "Speakers",
-        "Scene joins",
-        "Spelling",
-        "Format",
-    ]
     state = at.session_state["canon_run"]
-    assert state["manifest"]["complete"] is True
-    assert state["result"]["findings"]
-    assert len(at.checkbox) == len(state["result"]["findings"])
-    assert {button.label for button in at.download_button} >= {
-        "findings.csv",
-        "cast.csv",
-        "report.html",
-        "approvals.json",
-    }
+    cards = build_cards(state["result"])
+    assert [(m.label, m.value) for m in at.metric] == [
+        ("Issues", str(len(cards))),
+        ("Heard", "8"),
+        ("Voice", "1"),
+        ("Seen", "3"),
+        ("Episodes", "4"),
+    ]
+    assert not at.tabs
+    headers = [item.value for item in at.subheader]
+    assert any(value.startswith("Ready to fix") for value in headers)
+    assert any(value.startswith("Check first") for value in headers)
+    assert any(value.startswith("Fix by hand") for value in headers)
+    assert len([button for button in at.button if button.label == "Details"]) == len(cards)
+    shown = " ".join(markdown.value for markdown in at.markdown)
+    assert all(card.title in shown for card in cards)
+    assert at.checkbox == []
+
+
+def test_the_download_page_makes_the_fixed_zip():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
+    at.button(key="run_button").click().run()
+    run_id = at.session_state["canon_run"]["run_id"]
+
+    _click(at, "Fix these too").run()
+    _click(at, "Next: download").run()
+    _click(at, "Make fixed scripts").run()
+
+    assert not at.exception
+    assert not at.error
+    packed = at.session_state[f"fixed|{run_id}"]
+    with zipfile.ZipFile(io.BytesIO(packed["zip"])) as archive:
+        names = archive.namelist()
+    assert "CHANGES.csv" in names
+    assert "changes.diff" in names
+    assert "fix_by_hand.txt" in names
+    assert any(name.startswith("fixed_scripts/") for name in names)
+    assert any(button.label.startswith("⬇ Download fixed_scripts.zip") for button in at.download_button)
+
+
+def test_details_dialog_keeps_decisions_when_it_closes():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
+    at.button(key="run_button").click().run()
+    run_id = at.session_state["canon_run"]["run_id"]
+
+    next(
+        button for button in at.button
+        if button.label == "Details" and "name:N003.1" in str(button.key)
+    ).click().run()
+    at.selectbox[0].set_value("Ravensgar").run()
+    assert at.session_state[f"spelling|{run_id}|N003.1"] == "Ravensgar"
+
+    next(
+        button for button in at.button
+        if button.label == "Details" and "name:N003.1" in str(button.key)
+    ).click().run()
+    at.checkbox[0].set_value(True).run()
+    assert at.session_state[f"fix|{run_id}|F0001"] is True
+
+    next(
+        button for button in at.button
+        if button.label == "Details" and "place:F0015" in str(button.key)
+    ).click().run()
+    at.radio(key=f"whand|{run_id}|place:F0015").set_value("Not a problem").run()
+    assert at.session_state[f"hand|{run_id}|place:F0015"] == "Not a problem"
+    assert not at.exception
+
+
+def test_clear_all_and_a_new_check_clear_the_decisions():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
+    at.button(key="run_button").click().run()
+    old_run = at.session_state["canon_run"]["run_id"]
+
+    _click(at, "Fix these too").run()
+    assert any(str(key).startswith(f"fix|{old_run}|") for key in at.session_state)
+
+    _click(at, "Clear all").run()
+    assert not [key for key in at.session_state if str(key).startswith(f"fix|{old_run}|")]
+
+    _click(at, "Fix these too").run()
+    at.button(key="run_button").click().run()
+    new_run = at.session_state["canon_run"]["run_id"]
+    assert new_run != old_run
+    assert not [key for key in at.session_state if str(key).startswith(f"fix|{old_run}|")]
+    assert not [key for key in at.session_state if str(key).startswith(f"fix|{new_run}|")]
+
+
+def test_zip_fixed_puts_every_episode_under_fixed_scripts(tmp_path):
+    run = tmp_path / "run"
+    (run / "patched").mkdir(parents=True)
+    (run / "patched" / "episode-1.txt").write_text("fixed", encoding="utf-8")
+    (run / "patch.diff").write_text("a diff", encoding="utf-8")
+    changes = [
+        {"episode": 1, "time": "00:10.00", "where": "E01.B001", "was": "Ravenscourt", "now": "Ravenscar", "issue": "Ravenscourt → Ravenscar"}
+    ]
+
+    with zipfile.ZipFile(io.BytesIO(canon_app.zip_fixed(run, changes, []))) as archive:
+        assert sorted(archive.namelist()) == [
+            "CHANGES.csv",
+            "changes.diff",
+            "fix_by_hand.txt",
+            "fixed_scripts/episode-1.txt",
+        ]
+        changes_text = archive.read("CHANGES.csv").decode("utf-8")
+    assert "Ravenscourt" in changes_text and "Ravenscar" in changes_text

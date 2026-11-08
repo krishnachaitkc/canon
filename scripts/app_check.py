@@ -20,9 +20,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from canon import llm
+from canon.issues import build_cards, check_places, metrics, ready_places
 
 APP = ROOT / "app.py"
-MODELS = {"code": "Code only", "gemini": "Gemini free"}
+MODELS = {"code": "No AI", "gemini": "Gemini"}
 llm.CACHE_DIR = Path(tempfile.mkdtemp(prefix="canon_appcheck_cache_"))
 
 
@@ -41,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"mode: {args.mode}")
 
     at = AppTest.from_file(str(APP), default_timeout=600).run()
-    at.radio(key="input_mode").set_value("Try the sample show")
+    at.radio(key="input_mode").set_value("Sample show")
     at.radio(key="model_choice").set_value(MODELS[args.mode])
     at.button(key="run_button").click().run(timeout=600)
 
@@ -70,13 +71,23 @@ def main(argv: list[str] | None = None) -> int:
     cached = sum(int(stage.get("cached", 0)) for stage in llm.values())
     tokens_in = sum(int(stage.get("input_tokens", 0)) for stage in llm.values())
     tokens_out = sum(int(stage.get("output_tokens", 0)) for stage in llm.values())
+    cards = build_cards(result)
+    card_counts = metrics(cards)
     print("status: OK")
     print(f"episodes: {counts.get('episodes', 0)}")
     print(f"findings: {len(result['findings'])}")
     print(f"checks: {sum(1 for finding in result['findings'] if finding.source == 'check')}")
-    print(f"tiles: {len(at.metric)}")
-    print(f"tabs: {len(at.tabs)}")
-    print(f"findings_shown: {len(at.checkbox)}")
+    print(f"issues: {card_counts['issues']}")
+    print(f"heard: {card_counts['heard']}")
+    print(f"voice: {card_counts['voice']}")
+    print(f"seen: {card_counts['seen']}")
+    print(f"ready_cards: {sum(1 for card in cards if card.lane == 'ready')}")
+    print(f"check_cards: {sum(1 for card in cards if card.lane == 'check')}")
+    print(f"hand_cards: {sum(1 for card in cards if card.lane == 'hand')}")
+    print(f"ready_places: {len(ready_places(cards))}")
+    print(f"check_places: {len(check_places(cards))}")
+    print(f"cards_shown: {sum(1 for button in at.button if button.label == 'Details')}")
+    print(f"metrics: {len(at.metric)}")
     print(f"calls: {calls}")
     print(f"cached: {cached}")
     print(f"tokens_in: {tokens_in}")
