@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import llm
 from .config import ROUTES, is_peak, price_for
+from .errors import describe
 from .doctor import format_findings
 from .findings import cast_rows, name_rows, sort_and_number, speaker_rows
 from .joins import find_joins
@@ -86,6 +87,7 @@ def run(
         "input_sha256": input_hash(input_source),
     }
     try:
+        llm.report_phase("Reading the scripts")
         show = parse_show(input_source, title=title)
         index = build_index(show)
         _write_json(out / "mentions.json", [m.model_dump() for m in index.mentions])
@@ -95,9 +97,11 @@ def run(
         name_groups, apart, speaker_groups, verdicts = [], [], [], []
         findings = []
         if "names" in selected:
+            llm.report_phase("Finding name variants")
             candidates, threshold_log = build_candidates(index)
             _write_json(out / "candidates.json", [c.model_dump() for c in candidates])
         if "speakers" in selected:
+            llm.report_phase("Reading speaker labels")
             stats = speaker_stats(show, index)
             pairs = core_pairs(stats)
             _write_json(
@@ -110,6 +114,7 @@ def run(
                 if no_model:
                     name_groups = code_names(candidates, index)
                 else:
+                    llm.report_phase("Judging name groups")
                     name_groups, apart, name_checks = judge_names(candidates, index, show, spec)
                     findings += name_checks
                 findings += name_rows(name_groups, index, show)
@@ -117,20 +122,25 @@ def run(
                 if no_model:
                     speaker_groups, checks = code_speakers(stats, show)
                 else:
+                    llm.report_phase("Judging speaker labels")
                     speaker_groups, checks = judge_speakers(stats, show, spec)
                 findings += checks
                 findings += speaker_rows(speaker_groups, show)
 
         if "joins" in selected:
+            llm.report_phase("Checking scene joins")
             findings += find_joins(show)
         if "spelling" in selected:
+            llm.report_phase("Checking spoken spelling")
             candidates_d4 = spelling_candidates(show, index)
             if judging:
+                llm.report_phase("Judging spelling")
                 kept, verdicts = judge_spelling(candidates_d4, show, spec)
                 findings += kept
             else:
                 findings += candidates_d4
         if "format" in selected:
+            llm.report_phase("Checking header format")
             findings += format_findings(input_source)
         findings = sort_and_number(findings)
 
@@ -189,7 +199,11 @@ def run(
             "cast": cast,
         }
     except Exception as exc:
-        manifest["error"] = f"{type(exc).__name__}: {exc}"
+        info = describe(exc)
+        manifest["error"] = info.cause
+        manifest["error_title"] = info.title
+        manifest["error_hints"] = list(info.hints)
+        manifest["error_detail"] = info.detail
         manifest["llm"] = llm.get_stats()
         manifest["model_switches"] = llm.get_switches()
         raise
@@ -197,3 +211,4 @@ def run(
         manifest["seconds"] = round(time.time() - started, 2)
         _write_json(out / "manifest.json", manifest)
         llm.set_run_dir(None)
+        llm.set_progress(None)

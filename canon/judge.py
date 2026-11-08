@@ -121,7 +121,12 @@ def ask(stage: str, prompt: str, schema, spec: ModelSpec, check) -> BaseModel:
             + "\n- ".join(problems)
             + "\nReturn the corrected JSON."
         )
-    raise llm.LLMFailed(f"{stage}: the answer failed its check twice: {problems}")
+    raise llm.LLMFailed(
+        f"{stage}: the answer failed its check twice: {problems}",
+        kind="response",
+        detail="; ".join(problems),
+        hint="Run again. If it repeats, switch models or run Code only.",
+    )
 
 
 def _match(value: str, allowed: list[str]) -> str | None:
@@ -276,9 +281,11 @@ def judge_names(
             out = ask("names", prompt, NamesOut, spec, _check_names(spellings))
         except llm.LLMFailed as exc:
             LOG.warning("names %s try %d failed: %s", cid, attempt, exc)
-            return None
+            if exc.kind in FATAL_KINDS:
+                raise
+            return None, exc
         _normalize_names(out, spellings)
-        return out
+        return out, None
 
     by_id = {candidate.id: candidate for candidate in candidates}
     jobs = [(cid, attempt) for cid in sorted(by_id) for attempt in range(1, NAME_TRIES + 1)]
@@ -286,11 +293,24 @@ def judge_names(
     groups, apart, checks = [], [], []
     for candidate in candidates:
         _, display_to_key = prompts[candidate.id]
-        tries = [answers[(candidate.id, a)] for a in range(1, NAME_TRIES + 1)]
-        tries = [out for out in tries if out is not None]
-        if len(tries) < (NAME_TRIES // 2) + 1:
+        outcomes = [answers[(candidate.id, a)] for a in range(1, NAME_TRIES + 1)]
+        tries = [out for out, _ in outcomes if out is not None]
+        failures = [exc for out, exc in outcomes if out is None and exc is not None]
+        need = NAME_TRIES // 2 + 1
+        if len(tries) < need:
+            cause = f" First error: {failures[0]}" if failures else ""
+            detail = " | ".join(
+                dict.fromkeys(
+                    (getattr(exc, "detail", "") or str(exc)).strip() for exc in failures
+                )
+            )
             raise llm.LLMFailed(
-                f"names {candidate.id}: only {len(tries)} of {NAME_TRIES} tries answered; need a majority"
+                f"names {candidate.id}: only {len(tries)} of {NAME_TRIES} tries gave a usable "
+                f"answer; need {need}.{cause}",
+                kind="response",
+                route=getattr(failures[0], "route", None) if failures else None,
+                detail=detail,
+                hint="Run again. If it repeats, switch models or run Code only.",
             )
         out = majority(tries, list(candidate.spellings))
         number = 0
@@ -340,6 +360,7 @@ def judge_names(
 
 
 NAME_TRIES = 3
+FATAL_KINDS = {"auth", "config", "balance"}
 
 
 def majority(tries: list[NamesOut], spellings: list[str]) -> NamesOut:

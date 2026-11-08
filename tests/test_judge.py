@@ -126,6 +126,50 @@ def test_a_corrected_second_answer_is_accepted(monkeypatch):
     assert out.groups[0].spellings == ["Ravenscar", "Ravensgar"]
 
 
+def test_a_bad_key_is_not_hidden_by_the_majority_rule(sample, monkeypatch):
+    show, index, _, _ = sample
+    candidates, _ = build_candidates(index)
+
+    def bad_key(*args, **kwargs):
+        raise llm.LLMFailed(
+            "DeepSeek rejected the API key (HTTP 401).",
+            kind="auth",
+            hint="Paste a valid DeepSeek key in the sidebar.",
+        )
+
+    monkeypatch.setattr(judge.llm, "generate", bad_key)
+    spec = judge.ModelSpec(routes=["deepseek/deepseek-flash"])
+
+    with pytest.raises(llm.LLMFailed) as error:
+        judge.judge_names(candidates[:1], index, show, spec)
+
+    assert error.value.kind == "auth"
+    assert "rejected the API key" in str(error.value)
+    assert "0 of 3" not in str(error.value)
+
+
+def test_the_majority_error_keeps_the_underlying_reason(sample, monkeypatch):
+    show, index, _, _ = sample
+    candidates, _ = build_candidates(index)
+
+    def bad_json(*args, **kwargs):
+        raise llm.LLMFailed(
+            "DeepSeek did not return usable JSON.",
+            kind="response",
+            detail="deepseek/deepseek-flash returned invalid JSON 4 times",
+        )
+
+    monkeypatch.setattr(judge.llm, "generate", bad_json)
+    spec = judge.ModelSpec(routes=["deepseek/deepseek-flash"])
+
+    with pytest.raises(llm.LLMFailed) as error:
+        judge.judge_names(candidates[:1], index, show, spec)
+
+    assert "0 of 3" in str(error.value)
+    assert "did not return usable JSON" in str(error.value)
+    assert "invalid JSON" in error.value.detail
+
+
 def test_code_only_mode(sample):
     show, index, stats, _ = sample
     candidates, _ = build_candidates(index)

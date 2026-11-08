@@ -22,8 +22,10 @@ from typing import Any, Sequence
 import streamlit as st
 
 from canon.config import parse_route
+from canon.errors import ErrorInfo, describe
 from canon.patch import patch
 from canon.pipeline import run
+from canon import llm
 
 ROOT = Path(__file__).resolve().parent
 SAMPLE = ROOT / "samples" / "ravenscar"
@@ -31,10 +33,87 @@ RUN_LOCK = threading.Lock()
 MODEL_CHOICES = ["Code only", "Gemini free", "DeepSeek", "Custom"]
 SOURCE_COLORS = {"rule": "green", "ai": "blue", "check": "orange", "code": "gray"}
 SOURCE_LABELS = {"rule": "rule", "ai": "AI", "check": "check", "code": "code"}
+SOURCE_WORDS = {
+    "rule": "found by a pattern rule",
+    "ai": "found by the AI judge, then checked by code",
+    "check": "a person should decide",
+    "code": "found by code only, not judged by AI",
+}
+KEY_HELP = {
+    "Code only": "No key is used, and nothing leaves this machine.",
+    "Gemini free": (
+        "Paste a Google AI Studio key (normally starts with AIza), or leave it empty "
+        "to use the server key."
+    ),
+    "DeepSeek": (
+        "Paste a DeepSeek key (normally starts with sk-), or leave it empty to use the "
+        "server key."
+    ),
+    "Custom": "Paste the key for your endpoint, if it needs one. Leave empty to use the server key.",
+}
 PRIVACY_LINE = (
     "Uploads are processed on this server and, in a model mode, sent to the chosen model "
     "provider; Code only sends nothing."
 )
+FIRST_RUN = (
+    "Canon finds continuity slips before a script goes to voice and video generation."
+)
+STEPS = [
+    ("1", "Pick an input", "The bundled sample, or upload your own `.zip` or `.txt` scripts."),
+    ("2", "Pick a model", "**Code only** needs no key and sends nothing. Gemini free costs $0."),
+    ("3", "Run Canon", "Watch the stage and its progress. A full 50-episode show with a model takes a while."),
+    ("4", "Review", "Each finding shows its location, what was found, and the suggested fix."),
+    ("5", "Approve", "Tick the findings you agree with, then download the patched zip."),
+]
+SLOW_MODEL_NOTE = (
+    "A reasoning model can take several minutes on a full show. Each finished call is cached, "
+    "so a stopped run resumes where it left off."
+)
+
+
+def key_warning(choice: str, key: str) -> str | None:
+    """A hint when a pasted key does not look like the chosen provider's key. Never blocks."""
+    value = (key or "").strip()
+    if not value or choice == "Code only":
+        return None
+    if choice == "DeepSeek" and not value.startswith("sk-"):
+        return (
+            "This does not look like a DeepSeek key (they normally start with sk-). "
+            "If it belongs to another provider, choose Custom and enter that provider's base URL."
+        )
+    if choice == "Gemini free" and not value.startswith("AIza"):
+        return (
+            "This does not look like a Google AI Studio key (they normally start with AIza). "
+            "Check the key, or choose Custom for another provider."
+        )
+    return None
+
+
+def _upload_error(exc: Exception) -> ErrorInfo:
+    return ErrorInfo(
+        "That upload cannot be used",
+        str(exc),
+        ("Upload either one .zip file or one or more .txt files.",),
+    )
+
+
+def _show_error(info: ErrorInfo) -> None:
+    """One short card: what failed, what to do, and the raw reply only on request."""
+    st.error(f"**{info.title}**\n\n{info.cause}")
+    if info.hints:
+        st.markdown("**What to do next**")
+        for hint in info.hints:
+            st.markdown(f"- {hint}")
+    detail = (info.detail or "").strip()
+    if detail and detail != (info.cause or "").strip():
+        with st.expander("Technical details"):
+            st.code(detail, language="text")
+
+
+def _fail(info: ErrorInfo) -> None:
+    st.session_state["canon_run"] = None
+    st.session_state["canon_error"] = info.as_dict()
+    st.rerun()
 
 
 def _bridge_secrets() -> None:
@@ -199,7 +278,10 @@ def _render_finding(finding, run_id: str) -> None:
 def _render_group(group, rows, run_id: str, options: list[str], selections: dict, defaults: dict) -> None:
     with st.container(border=True):
         st.subheader(f"{group.canonical} ← {', '.join(o for o in options if o != group.canonical)}")
-        st.caption(f"Group {group.id} · confidence: {group.confidence} · source: {group.source}")
+        st.caption(
+            f"Group {group.id} · {SOURCE_WORDS.get(group.source, group.source)} · "
+            f"confidence: {group.confidence}"
+        )
         st.markdown(f"**Canonical:** {group.canonical}")
         st.markdown(f"**Spellings or labels:** {', '.join(options)}")
         if group.reason:
@@ -286,6 +368,10 @@ def _render_run(state: dict) -> None:
         f"cost: {cost}"
     )
 
+    st.caption(
+        "Each card shows what code found, what Canon suggests, and the quote it used. "
+        "Nothing is changed until you tick Approve and build the patched zip."
+    )
     selections: dict[str, str] = {}
     defaults: dict[str, str] = {}
     names_tab, speakers_tab, joins_tab, spelling_tab, format_tab = st.tabs(
@@ -386,25 +472,32 @@ def _render_run(state: dict) -> None:
 
 
 def _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api_key) -> None:
+    api_key = (api_key or "").strip()
     try:
         kwargs = model_kwargs(model_choice, custom_route, custom_base)
     except ValueError as exc:
-        st.error(str(exc))
-        st.stop()
+        _fail(describe(exc))
+        return
 
     if input_mode == "Try the sample show":
         input_path = str(SAMPLE)
     else:
         if not uploads:
-            st.error("Upload one .zip or one or more .txt files.")
-            st.stop()
+            _fail(
+                ErrorInfo(
+                    "No scripts were uploaded",
+                    "Upload one .zip file or one or more .txt files in the sidebar.",
+                    ("Only .zip and .txt scripts are accepted.",),
+                )
+            )
+            return
         folder = tempfile.mkdtemp(prefix="canon_input_")
         try:
             input_path = save_uploads(uploads, folder)
-        except ValueError as exc:
+        except Exception as exc:
             shutil.rmtree(folder, ignore_errors=True)
-            st.error(str(exc))
-            st.stop()
+            _fail(_upload_error(exc))
+            return
 
     out_dir = tempfile.mkdtemp(prefix="canon_run_")
     key_env = st.session_state.get("canon_key_env")
@@ -418,30 +511,51 @@ def _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api
     previous = st.session_state.get("canon_run")
     if previous:
         st.session_state.pop(f"patch|{previous['run_id']}", None)
-    error = None
+    problem = None
     try:
-        with st.spinner("Running Canon..."):
-            with RUN_LOCK:
-                result = run(input_path, out_dir, api_key_env=api_key_env, **kwargs)
+        with st.status("Running Canon...", expanded=True) as status:
+            line = st.empty()
+            bar = st.progress(0.0)
+
+            def progress(stage: str, done: int, total: int) -> None:
+                if total:
+                    bar.progress(min(1.0, done / total))
+                    line.write(f"**{stage}** · {done} of {total} done")
+                else:
+                    line.write(f"**{stage}...**")
+
+            llm.set_progress(progress)
+            try:
+                with RUN_LOCK:
+                    result = run(input_path, out_dir, api_key_env=api_key_env, **kwargs)
+            finally:
+                llm.set_progress(None)
+            status.update(label="Done", state="complete", expanded=False)
     except Exception as exc:
-        error = f"{type(exc).__name__}: {exc}"
+        problem = describe(exc)
     finally:
         if api_key_env:
             os.environ.pop(api_key_env, None)
 
-    if error is not None:
-        st.session_state["canon_run"] = None
-        st.session_state["canon_error"] = error
-        st.error(error)
-        st.stop()
+    if problem is not None:
+        _fail(problem)
+        return
     if not result["manifest"].get("complete"):
-        message = result["manifest"].get("error") or "The run did not complete."
-        st.session_state["canon_run"] = None
-        st.session_state["canon_error"] = message
-        st.error(message)
-        st.stop()
+        manifest = result["manifest"]
+        _fail(
+            ErrorInfo(
+                manifest.get("error_title") or "The run did not finish",
+                manifest.get("error") or "The run stopped before it finished.",
+                tuple(
+                    manifest.get("error_hints")
+                    or ("Run Canon again. Finished model calls are cached, so a retry skips them.",)
+                ),
+                manifest.get("error_detail") or "",
+            )
+        )
+        return
 
-    st.session_state["canon_error"] = ""
+    st.session_state["canon_error"] = None
     st.session_state["canon_run"] = {
         "result": result,
         "manifest": result["manifest"],
@@ -475,10 +589,13 @@ def _sidebar() -> None:
             "API key (optional)",
             type="password",
             key="api_key",
-            help=(
-                "With no key, the server's GEMINI_API_KEY, LLM_API_KEY or DEEPSEEK_API_KEY is used."
-            ),
+            help=KEY_HELP[model_choice],
         )
+        warning = key_warning(model_choice, api_key)
+        if warning:
+            st.warning(warning)
+        if model_choice != "Code only":
+            st.caption(SLOW_MODEL_NOTE)
         if st.button("Run Canon", key="run_button", type="primary"):
             _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api_key)
 
@@ -486,15 +603,26 @@ def _sidebar() -> None:
 def main() -> None:
     st.set_page_config(page_title="Canon", layout="wide")
     _sidebar()
+    error = st.session_state.get("canon_error")
+    if error:
+        info = (
+            ErrorInfo.from_dict(error)
+            if isinstance(error, dict)
+            else ErrorInfo("Canon stopped", str(error))
+        )
+        st.title("Canon")
+        _show_error(info)
+        st.caption("No scripts were changed. Fix the item above, then run Canon again.")
+        return
     state = st.session_state.get("canon_run")
     if not state:
-        if st.session_state.get("canon_error"):
-            st.error(st.session_state["canon_error"])
         st.title("Canon")
-        st.write(
-            "Canon finds name drift, speaker-label drift, scene-join contradictions, spoken "
-            "misspellings and format slips before a script goes to voice and video generation."
-        )
+        st.write(FIRST_RUN)
+        st.subheader("How to use it")
+        for number, title, body in STEPS:
+            st.markdown(f"**{number}. {title}.** {body}")
+        st.divider()
+        st.subheader("What Canon looks for")
         st.markdown(
             "- **Names:** one person, family or place spelled more than one way.\n"
             "- **Speakers:** one character under several labels, or one label for two people.\n"
@@ -502,7 +630,7 @@ def main() -> None:
             "- **Spelling:** misspellings inside spoken lines.\n"
             "- **Format:** a header label written differently from the rest of the show."
         )
-        st.caption("Choose the bundled sample or upload scripts in the sidebar, then run Canon.")
+        st.info(SLOW_MODEL_NOTE)
         return
     _render_run(state)
 

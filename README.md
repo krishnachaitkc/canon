@@ -43,4 +43,23 @@ python -m pytest tests -q
 - `patch` needs `approvals.json` from the app or written by hand, e.g. `{"F0003": true}`. Without it, it stops with an error.
 - `--model` swaps the judge; `--base-url` and `--api-key-env` point at any OpenAI-compatible endpoint.
 
+## How to use the app
+
+1. **Pick an input.** Try the bundled four-episode sample, or upload your own `.zip` or `.txt` scripts.
+2. **Pick a model.** *Code only* needs no key and sends nothing. *Gemini free* costs $0. *DeepSeek* is cheap and its judge is the most accurate.
+3. **Run Canon.** A live panel shows the current stage and how many model calls have finished. A full 50-episode show with a reasoning model runs for several minutes; each finished call is cached, so a run that stops resumes where it left off.
+4. **Review.** Every finding shows its location, what was found, and the suggested fix, plus whether a rule, the AI judge or a person's check found it.
+5. **Approve.** Tick the findings you agree with, pick a canonical spelling per group, then download `approvals.json` or the patched zip.
+
+Nothing in your scripts changes until you approve a finding and build a patch. The patch writes to a copy.
+
+### If a model run fails
+
+Canon shows the cause in plain words, a short "What to do next" list, and the provider's reply under **Technical details**. The same fields are written to `manifest.json` as `error_title`, `error`, `error_hints` and `error_detail`.
+
+- **HTTP 401 / "rejected the API key"** means the key does not belong to the chosen provider. Leave the key field empty to use the server key, paste the provider's own key, or choose **Code only**.
+- **HTTP 402 / "out of credit"** means the provider account needs credit.
+- **HTTP 429 / quota** means the free allowance is used up; wait for the reset, switch models, or run **Code only**.
+- A key pasted for **DeepSeek** normally starts with `sk-`; a **Gemini** key normally starts with `AIza`. If your key is from another provider, choose **Custom** and enter that provider's base URL.
+
 Kuku's script pack is not in this repository. `samples/ravenscar` is an original four-episode show written for testing.

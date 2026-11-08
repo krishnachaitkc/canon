@@ -59,6 +59,39 @@ def test_model_kwargs_rejects_a_custom_route_without_a_provider():
         canon_app.model_kwargs("Custom", "just-a-name")
 
 
+def test_key_warning_flags_a_key_from_another_provider():
+    assert canon_app.key_warning("DeepSeek", "fb0530f7-78c2-4472-aa9f-cd0ce5aaaaff")
+    assert canon_app.key_warning("DeepSeek", "sk-abc") is None
+    assert canon_app.key_warning("Gemini free", "AIzaSy-test") is None
+    assert canon_app.key_warning("Code only", "anything") is None
+
+
+def test_a_bad_key_is_shown_as_a_readable_card(monkeypatch):
+    from canon import llm
+
+    def bad_key(*args, **kwargs):
+        raise llm.LLMFailed(
+            "DeepSeek rejected the API key (HTTP 401).",
+            kind="auth",
+            hint="Paste a valid DeepSeek key in the sidebar.",
+            detail="Authentication Fails, Your api key: ****aaff is invalid",
+        )
+
+    monkeypatch.setattr("canon.pipeline.run", bad_key)
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Try the sample show")
+    at.radio(key="model_choice").set_value("DeepSeek")
+    at.button(key="run_button").click().run()
+
+    assert not at.exception
+    assert any("rejected the API key" in error.value for error in at.error)
+    assert any("What to do next" in markdown.value for markdown in at.markdown)
+    assert any("Code only" in markdown.value for markdown in at.markdown)
+    assert at.session_state["canon_error"]["title"] == (
+        "The model provider rejected the API key"
+    )
+
+
 def test_save_uploads_writes_txt_files_and_keeps_duplicates_apart(tmp_path):
     files = [upload("episode-1.txt", b"one"), upload("episode-1.txt", b"two")]
 

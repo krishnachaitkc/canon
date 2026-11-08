@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from .doctor import doctor
+from .errors import describe
 from .llm import generate, get_stats
 from .pipeline import DETECTORS, STOP_POINTS, run
 
@@ -154,18 +155,28 @@ def run_command(args) -> int:
     unknown = [d for d in only or [] if d not in DETECTORS]
     if unknown:
         raise SystemExit(f"unknown detector(s): {', '.join(unknown)}")
-    result = run(
-        args.input,
-        args.out,
-        title=args.title,
-        stop_after=args.stop_after,
-        only=only,
-        no_model=args.no_model,
-        model=args.model,
-        base_url=args.base_url,
-        api_key_env=args.api_key_env,
-        record_dir=args.record,
-    )
+    try:
+        result = run(
+            args.input,
+            args.out,
+            title=args.title,
+            stop_after=args.stop_after,
+            only=only,
+            no_model=args.no_model,
+            model=args.model,
+            base_url=args.base_url,
+            api_key_env=args.api_key_env,
+            record_dir=args.record,
+        )
+    except Exception as exc:
+        info = describe(exc)
+        print(f"{info.title}: {info.cause}")
+        for hint in info.hints:
+            print(f"  - {hint}")
+        detail = (info.detail or "").strip()
+        if detail and detail != (info.cause or "").strip():
+            print(f"  details: {detail}")
+        return 1
     manifest = result["manifest"]
     counts = manifest["counts"]
     print(f"Canon run: {manifest['title']} -> {args.out}  detectors: {','.join(manifest['detectors'])}")

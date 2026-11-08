@@ -74,6 +74,7 @@ def isolated(tmp_path, monkeypatch):
         ):
             llm._PACE[provider] = [gap, 0.0]
     llm.reset_stats()
+    llm.set_progress(None)
     yield
 
 
@@ -135,13 +136,17 @@ def test_every_model_out_of_quota_raises(monkeypatch):
     )
     mock_post(monkeypatch, [limited, limited])
 
-    with pytest.raises(llm.QuotaExhausted):
+    with pytest.raises(llm.QuotaExhausted) as error:
         llm.generate(
             "names",
             "prompt",
             Out,
             models=["deepseek/deepseek-flash", "deepseek/deepseek-reasoner"],
         )
+
+    assert "deepseek/deepseek-flash" in str(error.value)
+    assert "deepseek/deepseek-reasoner" in str(error.value)
+    assert len(error.value.reasons) == 2
 
 
 def test_402_moves_to_the_next_model(monkeypatch):
@@ -305,6 +310,49 @@ def test_run_many_returns_results_keyed_by_item():
     assert results == {1: 2, 2: 4, 3: 6, 4: 8}
 
 
+def test_run_many_reports_progress_as_each_item_finishes():
+    seen = []
+
+    def work(item):
+        return item
+
+    llm.set_progress(lambda stage, done, total: seen.append((stage, done, total)))
+    llm.run_many("names", ["a", "b", "c"], work, workers=1)
+
+    assert seen[0] == ("names", 0, 3)
+    assert seen[-1] == ("names", 3, 3)
+    assert [done for _, done, _ in seen[1:]] == [1, 2, 3]
+    assert {total for _, _, total in seen} == {3}
+
+
+def test_a_phase_reports_without_a_call_count():
+    seen = []
+    llm.set_progress(lambda stage, done, total: seen.append((stage, done, total)))
+
+    llm.report_phase("Reading the scripts")
+
+    assert seen == [("Reading the scripts", 0, 0)]
+
+
+def test_a_failing_progress_callback_never_breaks_a_run():
+    def explode(stage, done, total):
+        raise RuntimeError("the app is gone")
+
+    llm.set_progress(explode)
+
+    assert llm.run_many("names", [1, 2], lambda item: item, workers=1) == {1: 1, 2: 2}
+
+
+def test_setting_progress_to_none_silences_it():
+    seen = []
+    llm.set_progress(lambda stage, done, total: seen.append(stage))
+    llm.set_progress(None)
+
+    llm.run_many("names", [1], lambda item: item, workers=1)
+
+    assert seen == []
+
+
 def test_api_key_never_appears_in_the_error(monkeypatch, caplog):
     secret = "super-secret-key"
     monkeypatch.setenv("DEEPSEEK_API_KEY", secret)
@@ -315,5 +363,48 @@ def test_api_key_never_appears_in_the_error(monkeypatch, caplog):
             llm.generate("names", "prompt", Out, models=[MODEL])
 
     assert secret not in str(error.value)
+    assert secret not in error.value.detail
     assert secret not in caplog.text
-    assert "***" in str(error.value)
+    assert "***" in error.value.detail
+
+
+def test_a_bad_key_is_reported_as_a_key_problem(monkeypatch):
+    reply = {
+        "error": {
+            "message": "Authentication Fails, Your api key: ****aaff is invalid",
+            "type": "authentication_error",
+        }
+    }
+    mock_post(monkeypatch, [FakeResponse(401, payload=reply)])
+
+    with pytest.raises(llm.LLMFailed) as error:
+        llm.generate("names", "prompt", Out, models=[MODEL])
+
+    assert error.value.kind == "auth"
+    assert error.value.status == 401
+    assert "rejected the API key" in str(error.value)
+    assert "HTTP 401" in str(error.value)
+    assert "sk-" in error.value.hint
+    assert "Authentication Fails" in error.value.detail
+
+
+def test_a_missing_key_says_which_setting_to_change(monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+
+    with pytest.raises(llm.LLMFailed) as error:
+        llm.generate("names", "prompt", Out, models=[MODEL])
+
+    assert error.value.kind == "config"
+    assert "DeepSeek" in str(error.value)
+    assert "DEEPSEEK_API_KEY" in error.value.detail
+    assert "Code only" in error.value.hint
+
+
+def test_a_missing_model_names_the_model(monkeypatch):
+    mock_post(monkeypatch, [FakeResponse(404, text='{"error":{"message":"model not found"}}')])
+
+    with pytest.raises(llm.LLMFailed) as error:
+        llm.generate("names", "prompt", Out, models=["deepseek/no-such-model"])
+
+    assert error.value.kind == "model"
+    assert "no-such-model" in str(error.value)

@@ -27,6 +27,7 @@ READ_TIMEOUT = 300
 
 RUN_DIR: Path | None = None
 _LOG = logging.getLogger(__name__)
+_PROGRESS = None
 
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
@@ -43,11 +44,37 @@ _PACE = {
 
 
 class LLMFailed(RuntimeError):
-    pass
+    """A model call Canon cannot continue with.
+
+    `kind` lets the app explain the failure in plain words; `detail` keeps the provider's
+    sanitized reply for the technical-details panel.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: str = "error",
+        hint: str = "",
+        detail: str = "",
+        status: int | None = None,
+        route: str | None = None,
+    ):
+        super().__init__(message)
+        self.kind = kind
+        self.hint = hint
+        self.detail = detail
+        self.status = status
+        self.route = route
 
 
 class QuotaExhausted(RuntimeError):
-    pass
+    def __init__(
+        self, message: str, *, reasons: list[str] | None = None, hint: str = ""
+    ):
+        super().__init__(message)
+        self.reasons = list(reasons or [])
+        self.hint = hint
 
 
 class _NextModel(Exception):
@@ -61,6 +88,32 @@ def set_run_dir(path: str | Path | None) -> None:
         raw = RUN_DIR / "raw"
         raw.mkdir(parents=True, exist_ok=True)
         (raw / "llm_responses.jsonl").write_text("", encoding="utf-8")
+
+
+def set_progress(callback) -> None:
+    """Register a callback(stage, done, total) that runs after each model answer lands.
+
+    The app passes one so a long run shows its place instead of a silent spinner. The CLI
+    leaves it unset. It is never called from inside a lock, so a slow callback cannot
+    stall a worker.
+    """
+    global _PROGRESS
+    _PROGRESS = callback
+
+
+def _report(stage: str, done: int, total: int) -> None:
+    callback = _PROGRESS
+    if callback is None:
+        return
+    try:
+        callback(stage, done, total)
+    except Exception:
+        _LOG.debug("progress callback failed", exc_info=True)
+
+
+def report_phase(name: str) -> None:
+    """Tell the registered callback that a code-only phase started (no call count)."""
+    _report(name, 0, 0)
 
 
 def reset_stats() -> None:
@@ -168,21 +221,146 @@ def _sanitize(text: str | None, key: str | None) -> str:
     value = text or ""
     if key:
         value = value.replace(key, "***")
-    return value[:200]
+    return value[:500]
+
+
+PROVIDER_NAMES = {
+    "deepseek": "DeepSeek",
+    "openai": "OpenAI",
+    "gemini": "Gemini",
+    "anthropic": "Anthropic",
+    "fake": "the recorded sample",
+}
+
+KEY_HINTS = {
+    "deepseek": "DeepSeek keys normally start with sk-. Copy one from platform.deepseek.com.",
+    "openai": "OpenAI keys normally start with sk-. Copy one from platform.openai.com.",
+    "gemini": "Google AI Studio keys normally start with AIza.",
+    "anthropic": "Copy a key from console.anthropic.com.",
+}
+
+KEY_SETTINGS = {
+    "deepseek": "DEEPSEEK_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+}
+
+
+def _provider_name(provider: str) -> str:
+    return PROVIDER_NAMES.get(provider, provider)
+
+
+def _one_line(text: str | None, limit: int = 500) -> str:
+    value = " ".join((text or "").split())
+    return value if len(value) <= limit else value[: limit - 1].rstrip() + "\u2026"
+
+
+def _http_failed(route: str, provider: str, status: int, message: str) -> LLMFailed:
+    """Turn an HTTP failure into a short cause, a kind and a useful next step."""
+    name = _provider_name(provider)
+    lowered = message.lower()
+    detail = _one_line(message)
+    if status in (401, 403) or (
+        status in (400, 422)
+        and ("api key" in lowered or "authentication" in lowered or "unauthorized" in lowered)
+    ):
+        return LLMFailed(
+            f"{name} rejected the API key (HTTP {status}).",
+            kind="auth",
+            status=status,
+            route=route,
+            detail=detail,
+            hint=(
+                f"Provide a valid {name} key in the key field, or set "
+                f"{KEY_SETTINGS.get(provider, 'the server key')}. "
+                f"{KEY_HINTS.get(provider, '')}"
+            ).strip(),
+        )
+    if status == 402:
+        return LLMFailed(
+            f"The {name} account has no credit left (HTTP 402).",
+            kind="balance",
+            status=status,
+            route=route,
+            detail=detail,
+            hint="Add credit with the provider, switch to Gemini free, or run Code only.",
+        )
+    model_missing = status == 404 or (
+        status in (400, 422)
+        and "model" in lowered
+        and any(word in lowered for word in ("not found", "does not exist", "unknown", "invalid"))
+    )
+    if model_missing:
+        model = route.split("/", 1)[-1]
+        return LLMFailed(
+            f'{name} does not offer the model "{model}" (HTTP {status}).',
+            kind="model",
+            status=status,
+            route=route,
+            detail=detail,
+            hint=(
+                "Check the model name and, for Custom, the base URL. Or choose Gemini "
+                "free or DeepSeek."
+            ),
+        )
+    if status in (400, 422):
+        return LLMFailed(
+            f"{name} rejected the request (HTTP {status}).",
+            kind="request",
+            status=status,
+            route=route,
+            detail=detail,
+            hint=(
+                "If you are using Custom, check the base URL and model name. Otherwise "
+                "try another model or run Code only."
+            ),
+        )
+    return LLMFailed(
+        f"{name} refused the request (HTTP {status}).",
+        kind="http",
+        status=status,
+        route=route,
+        detail=detail,
+        hint="Try again, switch to another model, or run Code only.",
+    )
 
 
 def get_key(provider: str, key_env: str | None = None) -> str:
+    name = _provider_name(provider)
     if provider == "gemini":
-        value = os.getenv(key_env) if key_env else (os.getenv("GEMINI_API_KEY") or os.getenv("LLM_API_KEY"))
+        env_names = [key_env] if key_env else ["GEMINI_API_KEY", "LLM_API_KEY"]
+        value = next((os.getenv(env_name) for env_name in env_names if os.getenv(env_name)), "")
         if not value:
-            raise LLMFailed("GEMINI_API_KEY or LLM_API_KEY is not set")
+            raise LLMFailed(
+                "No API key was provided for Gemini.",
+                kind="config",
+                detail="GEMINI_API_KEY and LLM_API_KEY are both unset.",
+                hint=(
+                    "Provide a Gemini key in the key field, set GEMINI_API_KEY on the "
+                    "server, or choose Code only."
+                ),
+            )
         return value
     env_name = key_env or KEY_ENVS.get(provider)
     if not env_name:
-        raise LLMFailed(f"No API key environment variable for provider {provider}")
+        raise LLMFailed(
+            f"Canon does not know how to authenticate with {name}.",
+            kind="config",
+            detail=f"No key environment variable is registered for provider {provider}.",
+            hint="Choose Gemini free, DeepSeek, or Custom.",
+        )
     value = os.getenv(env_name)
     if not value:
-        raise LLMFailed(f"{env_name} is not set")
+        raise LLMFailed(
+            f"No API key was provided for {name}.",
+            kind="config",
+            detail=f"{env_name} is not set.",
+            hint=(
+                f"Provide your {name} key in the key field, set {env_name} on the server, "
+                "or choose Code only."
+            ),
+        )
     return value
 
 
@@ -438,8 +616,9 @@ def _call_model(
         except requests.RequestException as exc:
             _bump(stage, retries=1)
             if transport_attempt >= len(BACKOFFS):
+                reason = _one_line(f"{type(exc).__name__}: {_sanitize(str(exc), key)}", 160)
                 raise _NextModel(
-                    f"connection failed {transport_attempt + 1} times ({type(exc).__name__})"
+                    f"could not reach the provider after {transport_attempt + 1} tries ({reason})"
                 )
             _sleep(BACKOFFS[transport_attempt])
             transport_attempt += 1
@@ -452,7 +631,13 @@ def _call_model(
             except Exception as exc:
                 invalid_attempt += 1
                 if invalid_attempt > MAX_INVALID:
-                    raise LLMFailed(f"{route} returned an unreadable response: {type(exc).__name__}")
+                    raise LLMFailed(
+                        f"{_provider_name(provider)} returned a response Canon could not read.",
+                        kind="response",
+                        route=route,
+                        detail=f"{type(exc).__name__}: {_one_line(str(exc))}",
+                        hint="Run again. If it repeats, switch models or run Code only.",
+                    )
                 current_text = text + f"\n\nYour previous reply could not be read ({type(exc).__name__}). Return strict JSON."
                 _bump(stage, retries=1)
                 continue
@@ -470,7 +655,13 @@ def _call_model(
 
             if finish == "length":
                 if length_retried:
-                    raise LLMFailed(f"{route} hit the token limit twice")
+                    raise LLMFailed(
+                        f"{_provider_name(provider)} ran out of room before it finished its answer.",
+                        kind="response",
+                        route=route,
+                        detail=f"{route} hit the token limit twice (max_tokens={max_tokens}).",
+                        hint="Run again, or switch to a model with a larger output limit.",
+                    )
                 max_tokens *= 2
                 length_retried = True
                 _bump(stage, retries=1)
@@ -479,7 +670,13 @@ def _call_model(
             if not content or not content.strip():
                 invalid_attempt += 1
                 if invalid_attempt > MAX_INVALID:
-                    raise LLMFailed(f"{route} returned blank content")
+                    raise LLMFailed(
+                        f"{_provider_name(provider)} returned an empty answer.",
+                        kind="response",
+                        route=route,
+                        detail=f"{route} returned blank content {invalid_attempt} times.",
+                        hint="Run again. If it repeats, switch models or run Code only.",
+                    )
                 current_text = text + "\n\nYour previous reply was empty. Return strict JSON."
                 _bump(stage, retries=1)
                 continue
@@ -498,7 +695,16 @@ def _call_model(
             if parsed is None:
                 invalid_attempt += 1
                 if invalid_attempt > MAX_INVALID:
-                    raise LLMFailed(f"{route} returned invalid JSON")
+                    raise LLMFailed(
+                        f"{_provider_name(provider)} did not return usable JSON.",
+                        kind="response",
+                        route=route,
+                        detail=(
+                            f"{route} returned invalid JSON {invalid_attempt} times: "
+                            f"{_one_line(str(parse_error), 240)}"
+                        ),
+                        hint="Run again. If it repeats, switch models or run Code only.",
+                    )
                 current_text = (
                     text
                     + f"\n\nYour previous reply was invalid JSON ({parse_error}). Return strict JSON."
@@ -514,7 +720,13 @@ def _call_model(
             except ValidationError as exc:
                 invalid_attempt += 1
                 if invalid_attempt > MAX_INVALID:
-                    raise LLMFailed(f"{route} reply failed validation: {exc}")
+                    raise LLMFailed(
+                        f"{_provider_name(provider)}'s answer did not match Canon's expected shape.",
+                        kind="response",
+                        route=route,
+                        detail=f"{route} reply failed validation: {_one_line(str(exc))}",
+                        hint="Run again. If it repeats, switch models or run Code only.",
+                    )
                 current_text = (
                     text
                     + f"\n\nYour previous reply failed validation: {exc}. Fix it and return strict JSON."
@@ -573,7 +785,7 @@ def _call_model(
             format_retry_used = True
             _bump(stage, retries=1)
             continue
-        raise LLMFailed(f"{route} refused HTTP {status}: {message}")
+        raise _http_failed(route, provider, status, message)
 
 
 def _fake(stage: str, route: str, text: str, schema):
@@ -585,7 +797,13 @@ def _fake(stage: str, route: str, text: str, schema):
                 payload = {"results": payload}
             _bump(stage, calls=1, model=route)
             return schema.model_validate(payload)
-    raise LLMFailed(f"no recorded reply for {route} in {FAKE_DIR}")
+    raise LLMFailed(
+        f"No recorded answer for {route}.",
+        kind="config",
+        route=route,
+        detail=f"Looked for {FAKE_DIR} in the samples.",
+        hint="Use a real model or add the recorded answer.",
+    )
 
 
 def generate(
@@ -605,28 +823,43 @@ def generate(
     if no_fallback:
         chain = chain[:1]
     if not chain:
-        raise LLMFailed(f"No model route for stage {stage}")
+        raise LLMFailed(
+            f"No model is configured for the {stage} step.",
+            kind="config",
+            detail=f"No route is registered for stage {stage}.",
+            hint="Choose Gemini free, DeepSeek, or Custom.",
+        )
 
-    last_reason = None
+    failures: list[str] = []
     for route in chain:
         try:
             return _call_model(
                 stage, route, text, schema, base_url, api_key_env, extra or {}, use_cache
             )
         except _NextModel as exc:
-            last_reason = str(exc)
-            _log_switch(stage, route, last_reason)
+            reason = str(exc)
+            failures.append(f"{route}: {reason}")
+            _log_switch(stage, route, reason)
             continue
-    raise QuotaExhausted(f"every model in the chain for stage {stage} is unavailable: {last_reason}")
+    detail = "; ".join(failures) or "no model route answered"
+    raise QuotaExhausted(
+        f"No model could answer the {stage} step. {detail}",
+        reasons=failures,
+        hint="Wait if a quota ran out, choose another model, or run Code only.",
+    )
 
 
 def run_many(stage: str, items: list, fn, workers: int) -> dict:
     results = {}
+    total, done = len(items), 0
+    _report(stage, 0, total)
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {pool.submit(fn, item): item for item in items}
         try:
             for future in as_completed(futures):
                 results[futures[future]] = future.result()
+                done += 1
+                _report(stage, done, total)
         except BaseException:
             for future in futures:
                 future.cancel()

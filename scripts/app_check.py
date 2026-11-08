@@ -46,7 +46,13 @@ def main(argv: list[str] | None = None) -> int:
     at.button(key="run_button").click().run(timeout=600)
 
     state = at.session_state.get("canon_run")
-    error = at.session_state.get("canon_error") or ""
+    error = at.session_state.get("canon_error") or {}
+    if isinstance(error, dict):
+        error = ": ".join(
+            part for part in (error.get("title"), error.get("cause")) if part
+        )
+    else:
+        error = str(error)
     if at.error:
         error = error or _text(at.error[0])
     if at.exception:
