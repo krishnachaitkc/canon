@@ -6,6 +6,7 @@ import app as canon_app
 from canon.issues import (
     BANNED,
     all_text,
+    apart_lines,
     build_cards,
     by_hand_rows,
     change_rows,
@@ -13,6 +14,7 @@ from canon.issues import (
     decided_count,
     download_summary,
     is_decided,
+    issue_rows,
     metrics,
     progress_text,
     ready_places,
@@ -20,7 +22,7 @@ from canon.issues import (
     tick,
     will_fix_count,
 )
-from canon.models import Edit, Finding
+from canon.models import Candidate, Edit, Finding, NameGroup
 from canon.pipeline import run
 
 SAMPLE = Path(__file__).resolve().parents[1] / "samples" / "ravenscar"
@@ -123,6 +125,244 @@ def test_the_no_ai_typo_says_it_is_a_dictionary_guess(offline):
 
     assert typo.how_found == "You decide"
     assert typo.sentence.endswith("Dictionary guess. Old words like 'gaol' are real.")
+    assert typo.problem == "'seizzure' is not an English word, so the voice would say it wrong."
+    assert typo.why == (
+        "Closest dictionary word. Old words like 'gaol' are real, so check first."
+    )
+
+
+def test_every_card_says_what_is_wrong_and_why(offline, recorded):
+    for result in (offline, recorded):
+        for item in build_cards(result):
+            assert item.problem, item.id
+            assert item.why, item.id
+
+
+def test_the_name_card_counts_each_spelling(recorded):
+    ravens = card(build_cards(recorded), "name:N003.1")
+
+    assert ravens.problem == (
+        "One name is written 3 ways: Ravenscar (5), Ravenscourt (1), Ravensgar (1). "
+        "Viewers would hear all of them."
+    )
+    assert ravens.why == "'Ravenscar' is the spelling the script uses most (5 of 7)."
+
+
+def test_the_voice_card_counts_each_label(recorded):
+    cards = build_cards(recorded)
+    lord = card(cards, "voice:S002")
+    disguise = card(cards, "voice:S001")
+
+    assert lord.problem == (
+        "One character speaks under 2 labels: EDMUND (6 lines) and LORD EDMUND (3 lines). "
+        "Each label gets its own voice, so one person would sound like two people."
+    )
+    assert lord.why == "'EDMUND' is the label used most (6 of 9 lines)."
+    assert disguise.problem == (
+        "The AI says these labels hide one person on purpose (a disguise or a reveal)."
+    )
+    assert disguise.why == "Nothing to rename. Cast one voice for all of them."
+
+
+def test_the_time_card_names_the_notes_and_the_caution(recorded):
+    time = card(build_cards(recorded), "time:E02.S01.time|DAY|NIGHT")
+
+    assert time.problem == (
+        "The notes say E02 picks up immediately after E01, but E01 S2 is NIGHT and E02 S1 "
+        "is DAY. The picture would jump from night to day. "
+        "If time passes between the two places, this is not a mistake."
+    )
+    assert time.why == "Canon suggests NIGHT to match the scene before it."
+
+
+def test_the_place_and_format_cards_say_what_to_do(recorded):
+    cards = build_cards(recorded)
+    place = card(cards, "place:F0012")
+    fmt = card(cards, "format:4")
+
+    assert place.problem == (
+        "In one continuous moment the building is a cottage before the cut and a cabin "
+        "after it. The video would draw two different buildings."
+    )
+    assert place.why == "Canon can't tell which name is right. Pick one and edit the heading."
+    assert fmt.problem == (
+        "E04 writes SCENE HEADING in capitals; the other 3 episodes write 'Scene heading'."
+    )
+    assert fmt.why == (
+        "Tools that read scripts by these labels could miss this episode. It is a one-time edit."
+    )
+
+
+def test_the_typo_card_says_what_the_voice_would_say(recorded):
+    typo = card(build_cards(recorded), "typo:word:seizzure")
+
+    assert typo.problem == "'seizzure' is not an English word, so the voice would say it wrong."
+    assert typo.why == "The AI read the line and suggests 'seizure'."
+
+
+def _unsure_name():
+    return _finding(
+        id="F0001",
+        detector="names",
+        severity="visible",
+        source="check",
+        confidence="low",
+        ep=0,
+        scene=0,
+        where="N009",
+        found="Alpha / Alfa",
+        group="names:N009",
+        edit=None,
+    )
+
+
+def _veto_voice():
+    return _finding(
+        id="F0002",
+        detector="speakers",
+        severity="voice",
+        source="rule",
+        confidence="high",
+        ep=4,
+        scene=1,
+        where="E04 S01 00:34.80",
+        found="ALPHA matched to ALFA, but both speak in E04 S01 00:34.80",
+        group="veto:ALPHA",
+        edit=None,
+    )
+
+
+def test_unsure_and_veto_cards_say_what_to_do():
+    cards = build_cards(
+        {
+            "findings": [_unsure_name(), _veto_voice()],
+            "name_groups": [],
+            "speaker_groups": [],
+        }
+    )
+    unsure = next(item for item in cards if item.kind == "name")
+    veto = next(item for item in cards if item.kind == "voice")
+
+    assert unsure.problem == "The AI could not tell whether Alpha and Alfa are one name."
+    assert unsure.why == "If they are, give them one name. If not, leave both."
+    assert veto.problem == (
+        "ALPHA was matched to ALFA, but both speak in E04 S1, so they may be two people."
+    )
+    assert veto.why == "If so, give one of them a new label."
+
+
+def test_the_name_card_says_when_the_ai_picked_a_less_used_spelling():
+    result = {
+        "findings": [
+            _finding(
+                id="F0001",
+                detector="names",
+                severity="audible",
+                source="ai",
+                confidence="high",
+                where="E01.B001",
+                found="Alfa",
+                suggestion="Alpha",
+                group="N005.1",
+                edit=Edit(at="E01.B001", old="Alfa", new="Alpha"),
+            )
+        ],
+        "name_groups": [
+            NameGroup(
+                id="N005.1",
+                candidate="N005",
+                spellings=["Alpha", "Alfa"],
+                keys=["alpha", "alfa"],
+                canonical="Alpha",
+                same_entity=True,
+                source="ai",
+            )
+        ],
+        "speaker_groups": [],
+        "candidates": [
+            Candidate(
+                id="N005",
+                keys=["alpha", "alfa"],
+                spellings={"Alfa": 5, "Alpha": 1},
+                spoken={"Alfa": 4, "Alpha": 1},
+                links=[],
+            )
+        ],
+    }
+    name = build_cards(result)[0]
+
+    assert name.problem == (
+        "One name is written 2 ways: Alpha (1), Alfa (5). Viewers would hear all of them."
+    )
+    assert name.why == (
+        "The AI picked 'Alpha' (used 1 of 6 times). You can choose another in Details."
+    )
+
+
+def test_the_format_card_lists_every_label_in_one_episode():
+    rows = [
+        _finding(id="F0001", detector="format", severity="notes", ep=6, where="Scene heading", found="SCENE HEADING", suggestion="Scene heading", context="49 episodes write 'Scene heading'", group="format:Scene heading", edit=None),
+        _finding(id="F0002", detector="format", severity="notes", ep=6, where="Scene start", found="SCENE START", suggestion="Scene start", context="49 episodes write 'Scene start'", group="format:Scene start", edit=None),
+        _finding(id="F0003", detector="format", severity="notes", ep=6, where="Scene end", found="SCENE END", suggestion="Scene end", context="49 episodes write 'Scene end'", group="format:Scene end", edit=None),
+        _finding(id="F0004", detector="format", severity="notes", ep=6, where="Actions and dialogue", found="ACTIONS AND DIALOGUE", suggestion="Actions and dialogue", context="49 episodes write 'Actions and dialogue'", group="format:Actions and dialogue", edit=None),
+    ]
+    fmt = build_cards({"findings": rows, "name_groups": [], "speaker_groups": []})[0]
+
+    assert "SCENE HEADING" in fmt.problem
+    assert "SCENE START" in fmt.problem
+    assert "SCENE END" in fmt.problem
+    assert "ACTIONS AND DIALOGUE" in fmt.problem
+    assert "the other 49 episodes write them as 'Scene heading', 'Scene start', " in fmt.problem
+    assert "'Scene end' and 'Actions and dialogue'" in fmt.problem
+
+
+def test_kept_apart_pairs_are_one_line_without_ids(recorded):
+    lines = apart_lines(recorded)
+
+    assert lines == [
+        "Hartwell · Hartley: the AI judged these to be different names. No change."
+    ]
+    assert not any("N001" in line for line in lines)
+
+
+def test_kept_apart_drops_spellings_shown_on_a_card():
+    result = {
+        "findings": [
+            _finding(
+                id="F0001",
+                detector="names",
+                severity="audible",
+                source="ai",
+                confidence="high",
+                where="E01.B001",
+                found="Ravenscourt",
+                suggestion="Ravenscar",
+                group="N001.1",
+                edit=Edit(at="E01.B001", old="Ravenscourt", new="Ravenscar"),
+            )
+        ],
+        "name_groups": [
+            NameGroup(
+                id="N001.1",
+                candidate="N001",
+                spellings=["Ravenscar", "Ravenscourt"],
+                keys=["ravenscar", "ravenscourt"],
+                canonical="Ravenscar",
+                same_entity=True,
+                source="ai",
+            )
+        ],
+        "speaker_groups": [],
+        "apart": [
+            {"candidate": "N001", "spellings": ["Ravenscar"]},
+            {"candidate": "N001", "spellings": ["Ravenscourt"]},
+            {"candidate": "N002", "spellings": ["Thorne", "Thorn"]},
+        ],
+    }
+
+    assert apart_lines(result) == [
+        "Thorne · Thorn: the AI judged these to be different names. No change."
+    ]
 
 
 def test_no_banned_word_appears_in_card_text(offline, recorded):
@@ -183,9 +423,13 @@ def test_progress_uses_cards_and_ticked_places(recorded):
     checked = tick(cards, {}, "ready")
 
     assert decided_count(cards) == 0
-    assert progress_text(cards) == "0 of 11 decided · 0 places will be fixed"
+    assert progress_text(cards) == (
+        "Ready 0 of 6 · Check first 0 of 1 · Fix by hand 0 of 4 · 0 places will be fixed"
+    )
     assert decided_count(cards, checked) == 6
-    assert progress_text(cards, checked) == "6 of 11 decided · 10 places will be fixed"
+    assert progress_text(cards, checked) == (
+        "Ready 6 of 6 · Check first 0 of 1 · Fix by hand 0 of 4 · 10 places will be fixed"
+    )
     assert metrics(cards)["issues"] == 11
     assert metrics(cards)["episodes"] == 4
     assert sum(metrics(cards)[key] for key in ("heard", "voice", "seen", "notes")) == 11
@@ -223,15 +467,30 @@ def test_the_by_hand_list_holds_only_cards_marked_by_hand(recorded):
     assert rows[0]["title"] == "cottage or cabin?"
 
 
-def test_the_download_summary_counts_places_and_by_hand_work(recorded):
+def test_the_download_summary_counts_places_episodes_and_issues(recorded):
     cards = build_cards(recorded)
     checked = tick(cards, {}, "ready")
     hand = {card(cards, "place:F0012").id: "by_hand"}
 
     assert download_summary(cards, checked, hand) == (
-        "Fixing 10 places in 3 episodes. 1 issue to fix by hand. "
+        "Fixing 10 places in 3 episodes across 6 issues. "
+        "Not changed: 1 check-first and 4 by-hand issues. "
         "Your original files are not changed."
     )
+
+
+def test_the_download_has_one_row_per_issue(recorded):
+    cards = build_cards(recorded)
+    checked = tick(cards, {}, "ready")
+    issues = issue_rows(cards, checked)
+
+    assert len(issues) == 6
+    assert sum(item["places"] for item in issues) == 10
+    assert all(item["kind"] and item["episodes"] and item["rows"] for item in issues)
+    assert issues[0]["issue"] == "LORD EDMUND → EDMUND"
+    assert issues[0]["episodes"] == (3,)
+    assert all(row["where_label"] in ("Heard", "Seen", "Voice", "Notes") for item in issues for row in item["rows"])
+    assert all("context" in row for item in issues for row in item["rows"])
 
 
 def test_approvals_from_decisions_equal_the_expected_json(recorded):

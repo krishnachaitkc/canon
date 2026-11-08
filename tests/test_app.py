@@ -8,10 +8,12 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import app as canon_app
-from canon.issues import build_cards
+from canon.issues import build_cards, issue_rows
+from canon.parse import parse_show
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app.py"
+SAMPLE = ROOT / "samples" / "ravenscar"
 
 
 def upload(name: str, data: bytes):
@@ -163,6 +165,29 @@ def test_run_totals_reads_the_manifest():
     }
 
 
+def test_friendly_model_names_hide_the_route():
+    assert canon_app.friendly_model("deepseek/deepseek-flash") == "DeepSeek"
+    assert canon_app.friendly_model("gemini/gemini-3.5-flash-lite") == "Gemini"
+    assert canon_app.friendly_model("fake/recorded") == "recorded AI answers"
+    assert canon_app.friendly_model("openai/their-model") == "openai/their-model"
+
+
+def test_the_input_line_counts_spoken_lines():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Sample show")
+    at.radio(key="model_choice").set_value("No AI")
+    at.button(key="run_button").click().run()
+
+    show = parse_show(SAMPLE)
+    spoken = sum(1 for episode in show.episodes for beat in episode.beats if beat.kind == "line")
+    scenes = sum(len(episode.scenes) for episode in show.episodes)
+    expected = f"Read {len(show.episodes)} episodes · {spoken:,} spoken lines · {scenes} scenes."
+    captions = [item.value for item in at.caption]
+
+    assert expected in captions
+    assert all("11181 lines" not in value for value in captions)
+
+
 def test_the_app_survives_a_build_without_progress_reporting(monkeypatch):
     """A deploy can pair this app.py with an older canon.llm. Progress is cosmetic."""
     from canon import llm
@@ -202,6 +227,11 @@ def test_the_home_page_offers_the_one_click_sample():
     assert fix_all.label != "✓ Fix all ready (0 places)"
     fix_all.click().run(timeout=180)
     assert not at.exception
+    assert any(
+        "All 6 ready issues are set to be fixed (10 places). Next: look at Check first (1)."
+        in item.value
+        for item in at.success
+    )
     run_id = at.session_state["canon_run"]["run_id"]
     ticked = [key for key in at.session_state if str(key).startswith(f"fix|{run_id}|") and at.session_state[key]]
     assert ticked
@@ -229,9 +259,16 @@ def test_the_app_runs_the_sample_offline_and_shows_cards_and_metrics():
     assert any(value.startswith("Ready to fix") for value in headers)
     assert any(value.startswith("Check first") for value in headers)
     assert any(value.startswith("Fix by hand") for value in headers)
+    shown = " ".join(markdown.value for markdown in at.markdown)
+    assert "Canon is sure and can change these for you. One click: Fix all ready." in shown
+    assert "Canon can change these, but no AI checked them. Read each card, then press Fix." in shown
+    assert "Canon can't change these for you (building names, header format" in shown
+    assert any(value.startswith("Ready 0 of") for value in (item.value for item in at.caption))
     assert len([button for button in at.button if button.label == "Details"]) == len(cards)
     shown = " ".join(markdown.value for markdown in at.markdown)
     assert all(card.title in shown for card in cards)
+    assert any("**Problem:**" in markdown.value for markdown in at.markdown)
+    assert any("**Why this fix:**" in markdown.value for markdown in at.markdown)
     assert at.checkbox == []
 
 
@@ -256,6 +293,34 @@ def test_the_download_page_makes_the_fixed_zip():
     assert "fix_by_hand.txt" in names
     assert any(name.startswith("fixed_scripts/") for name in names)
     assert any(button.label.startswith("⬇ Download fixed_scripts.zip") for button in at.download_button)
+
+
+def test_the_download_page_has_one_summary_row_per_issue():
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    _click(at, "Try the sample now").run(timeout=180)
+    state = at.session_state["canon_run"]
+    run_id = state["run_id"]
+    cards = build_cards(state["result"])
+
+    _click(at, "✓ Fix all ready").run()
+    fix = {
+        str(key)[len(f"fix|{run_id}|"):]: bool(value)
+        for key, value in at.session_state.items()
+        if str(key).startswith(f"fix|{run_id}|") and value
+    }
+    issues = issue_rows(cards, fix)
+    _click(at, "Next: download").run()
+
+    assert not at.exception
+    summary = at.dataframe[0].value
+    assert list(summary.columns) == ["Issue", "Kind", "Places", "Episodes"]
+    assert len(summary) == len(issues) == 6
+    assert summary["Places"].sum() == 10
+    assert set(summary["Kind"]) == {"NAME", "VOICE", "SPOKEN TYPO"}
+    assert [label.label for label in at.expander if " · " in label.label] == [
+        f"{item['issue']} · {item['places']} place{'s' if item['places'] != 1 else ''}"
+        for item in issues
+    ]
 
 
 def test_details_dialog_keeps_decisions_when_it_closes():

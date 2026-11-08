@@ -32,12 +32,14 @@ from canon.issues import (
     LANES,
     SEVERITY_WHERE,
     WHERE_LABELS,
+    apart_lines,
     build_cards,
     by_hand_rows,
     change_rows,
     check_places,
     decided_count,
     download_summary,
+    issue_rows,
     metrics,
     progress_text,
     ready_places,
@@ -258,6 +260,18 @@ def save_uploads(files: Sequence[Any], destination: str | Path) -> str:
         used.add(candidate)
         (dest / candidate).write_bytes(_upload_bytes(file))
     return str(dest)
+
+
+def friendly_model(route: str) -> str:
+    """A model name a person reading the screen understands."""
+    value = str(route or "")
+    if value.startswith("deepseek/"):
+        return "DeepSeek"
+    if value.startswith("gemini/"):
+        return "Gemini"
+    if value.startswith("fake/"):
+        return "recorded AI answers"
+    return value
 
 
 def run_totals(manifest: dict) -> dict:
@@ -484,6 +498,23 @@ def _episodes_text(episodes: tuple[int, ...]) -> str:
     return ", ".join(shown)
 
 
+def _episode_ranges(episodes: tuple[int, ...]) -> str:
+    """'E1–3, E21–24' for the download summary."""
+    numbers = sorted({int(ep) for ep in episodes if ep})
+    if not numbers:
+        return ""
+    parts = []
+    start = previous = numbers[0]
+    for number in numbers[1:]:
+        if number == previous + 1:
+            previous = number
+            continue
+        parts.append(f"E{start}" if start == previous else f"E{start}–{previous}")
+        start = previous = number
+    parts.append(f"E{start}" if start == previous else f"E{start}–{previous}")
+    return ", ".join(parts)
+
+
 def _start_run(
     input_mode: str,
     uploads,
@@ -588,8 +619,11 @@ def _start_run(
     try:
         show = parse_show(input_path)
         scenes = sum(len(episode.scenes) for episode in show.episodes)
+        spoken = sum(
+            1 for episode in show.episodes for beat in episode.beats if beat.kind == "line"
+        )
         input_stats = (
-            f"Read {len(show.episodes)} episodes · {show.script_lines} lines · {scenes} scenes."
+            f"Read {len(show.episodes)} episodes · {spoken:,} spoken lines · {scenes} scenes."
         )
         if show.unconsumed_lines:
             input_stats += f" {show.unconsumed_lines} lines were not understood."
@@ -767,6 +801,14 @@ def _home() -> None:
     st.caption("AI can be wrong, so you decide every fix.")
 
 
+def _lane_guide() -> None:
+    """Three small boxes that explain the lanes before the cards."""
+    columns = st.columns(3)
+    for column, lane in zip(columns, LANES):
+        with column, st.container(border=True):
+            st.markdown(f"**{LANE_TITLES[lane]}:** {LANE_RULES[lane]}")
+
+
 def _lane_header(lane: str, cards: list, run_id: str) -> None:
     st.subheader(f"{LANE_TITLES[lane]} ({len(cards)})")
     st.caption(LANE_RULES[lane])
@@ -796,7 +838,8 @@ def _draw_card(card, run_id: str, fix: dict, hand: dict) -> None:
             color = "orange"
         top[1].badge(chip, color=color)
         st.markdown(f"**{card.title}**")
-        st.write(card.sentence)
+        st.markdown(f"**Problem:** {card.problem}")
+        st.markdown(f"**{_why_label(card)}:** {card.why}")
         count = f"{len(card.places)} place{'s' if len(card.places) != 1 else ''}"
         episodes = _episodes_text(card.episodes)
         st.caption(f"{count} · {episodes}" if episodes else count)
@@ -823,6 +866,10 @@ def _draw_card(card, run_id: str, fix: dict, hand: dict) -> None:
             _details(card)
 
 
+def _why_label(card) -> str:
+    return "What to do" if card.lane == "hand" else "Why this fix"
+
+
 @st.dialog("Details", width="large")
 def _details(card) -> None:
     state = st.session_state.get("canon_run")
@@ -830,7 +877,8 @@ def _details(card) -> None:
         return
     run_id = state["run_id"]
     st.subheader(card.title)
-    st.write(card.sentence)
+    st.markdown(f"**Problem:** {card.problem}")
+    st.markdown(f"**{_why_label(card)}:** {card.why}")
 
     if card.options and card.group_id:
         current = st.session_state.get(_spell_key(run_id, card.group_id), card.default)
@@ -967,15 +1015,19 @@ def _review(state: dict) -> None:
     else:
         cost = "unknown" if totals["cost_usd"] is None else f"${float(totals['cost_usd']):.4f}"
         st.caption(
-            f"Checked with {totals['model']} · {totals['calls']} AI calls "
+            f"Checked with {friendly_model(totals['model'])} · {totals['calls']} AI calls "
             f"({totals['cached']} reused) · cost {cost}"
         )
+
+    _lane_guide()
 
     total = len(cards)
     st.progress(decided_count(cards, fix, hand) / total if total else 0.0)
     st.caption(progress_text(cards, fix, hand))
 
     ready = ready_places(cards)
+    ready_issues = sum(1 for card in cards if card.lane == "ready")
+    check_issues = sum(1 for card in cards if card.lane == "check")
     actions = st.columns([2, 1, 3])
     if actions[0].button(
         f"✓ Fix all ready ({len(ready)} places)",
@@ -984,7 +1036,15 @@ def _review(state: dict) -> None:
         disabled=not ready,
     ):
         _set_fixes(run_id, ready, True)
+        st.session_state[f"ready_note|{run_id}"] = (
+            f"All {ready_issues} ready {'issue' if ready_issues == 1 else 'issues'} are set "
+            f"to be fixed ({len(ready)} {'place' if len(ready) == 1 else 'places'}). "
+            f"Next: look at Check first ({check_issues})."
+        )
         st.rerun()
+    note = st.session_state.pop(f"ready_note|{run_id}", None)
+    if note:
+        st.success(note)
     if not ready:
         actions[0].caption("Nothing here was checked by AI. Look at Check first, or check again with Gemini (free).")
     if actions[1].button("Clear all", key=f"clearall|{run_id}"):
@@ -1016,13 +1076,11 @@ def _review(state: dict) -> None:
             with columns[index % 3]:
                 _draw_card(card, run_id, fix, hand)
 
-    apart = result.get("apart") or []
-    if apart:
+    kept_apart = apart_lines(result)
+    if kept_apart:
         with st.expander("Looked alike, kept apart"):
-            for item in apart:
-                st.caption(
-                    f"{', '.join(item.get('spellings', []))} ({item.get('candidate', '')})"
-                )
+            for line in kept_apart:
+                st.caption(line)
 
     st.divider()
     if st.button("Next: download →", key=f"next|{run_id}", type="primary"):
@@ -1048,19 +1106,32 @@ def _download(state: dict) -> None:
         return
 
     st.write(download_summary(cards, fix, hand))
-    preview = [
+    st.caption("A voice label change renames who speaks a line; the words stay the same.")
+    issues = issue_rows(cards, fix, choices)
+    summary = [
         {
-            "Episode": f"E{row['episode']:02d}" if row["episode"] else "Whole show",
-            "Time": row["time"],
-            "Where": row["where"],
-            "Was → Now": f"{row['was']} → {row['now']}",
-            "Issue": row["issue"],
+            "Issue": item["issue"],
+            "Kind": item["kind"],
+            "Places": item["places"],
+            "Episodes": _episode_ranges(item["episodes"]),
         }
-        for row in rows[:50]
+        for item in issues
     ]
-    st.dataframe(preview, hide_index=True, width="stretch")
-    if len(rows) > 50:
-        st.caption(f"and {len(rows) - 50} more")
+    st.dataframe(summary, hide_index=True, width="stretch")
+    for item in issues:
+        label = f"{item['issue']} · {item['places']} place{'s' if item['places'] != 1 else ''}"
+        with st.expander(label):
+            preview = [
+                {
+                    "Episode": f"E{row['episode']}" if row["episode"] else "Whole show",
+                    "Time": row["time"],
+                    "Heard/Seen/Voice/Notes": row["where_label"],
+                    "Line": _cut(row.get("context", ""), 80),
+                    "Was → Now": f"{row['was']} → {row['now']}",
+                }
+                for row in item["rows"]
+            ]
+            st.dataframe(preview, hide_index=True, width="stretch")
 
     defaults = {
         group.id: group.canonical

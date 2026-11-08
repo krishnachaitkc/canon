@@ -6,6 +6,7 @@ change list. Every finding lands in exactly one card.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
@@ -40,9 +41,12 @@ LANE_TITLES = {
     "hand": "Fix by hand",
 }
 LANE_RULES = {
-    "ready": "AI-checked. The fix is automatic.",
-    "check": "Found by rules or code without AI review. Look before you fix.",
-    "hand": "Canon can't edit these. Decide, then fix in your script.",
+    "ready": "Canon is sure and can change these for you. One click: Fix all ready.",
+    "check": "Canon can change these, but no AI checked them. Read each card, then press Fix.",
+    "hand": (
+        "Canon can't change these for you (building names, header format, labels that hide "
+        "someone on purpose). Read, decide, edit your script."
+    ),
 }
 HOW_FOUND = {
     "rule": "Rule",
@@ -76,6 +80,8 @@ class Card:
     fixable: tuple[str, ...]
     episodes: tuple[int, ...]
     how_found: str
+    problem: str = ""
+    why: str = ""
     options: tuple[str, ...] = ()
     default: str = ""
     reason: str = ""
@@ -160,6 +166,35 @@ def _time_short(start: str) -> str:
     return (start or "")[:5]
 
 
+def _scene_short(label: str) -> str:
+    """'E02 S01' -> 'E02 S1', the way a person says it."""
+    return re.sub(r"\bS0*(\d+)\b", r"S\1", label or "")
+
+
+def _quoted_list(items: Iterable[str]) -> str:
+    return _join_and([f"'{item}'" for item in items])
+
+
+def _counted(spellings: Iterable[str], counts: dict[str, int], unit: str = "") -> str:
+    parts = []
+    for spelling in spellings:
+        if counts:
+            suffix = f" {unit}" if unit else ""
+            parts.append(f"{spelling} ({counts.get(spelling, 0)}{suffix})")
+        else:
+            parts.append(spelling)
+    return ", ".join(parts)
+
+
+def _picked_why(chosen: str, counts: dict[str, int], word_for_total: str) -> str:
+    total = sum(counts.values())
+    picked = counts.get(chosen, 0)
+    return (
+        f"The AI picked '{chosen}' (used {picked} of {total} {word_for_total}). "
+        "You can choose another in Details."
+    )
+
+
 def _main_episode(findings: list) -> int:
     for finding in findings:
         if getattr(finding, "ep", 0):
@@ -167,28 +202,57 @@ def _main_episode(findings: list) -> int:
     return 0
 
 
-def _name_card(key: str, findings: list, groups: dict) -> Card:
+def _name_card(key: str, findings: list, groups: dict, candidates: dict) -> Card:
     spot = key.split(":", 1)[1]
     group = groups.get(spot)
     first = findings[0]
     fixable = tuple(f.id for f in findings if is_fixable(f))
     episodes = tuple(sorted({int(f.ep) for f in findings if f.ep}))
+    problem, why = "", ""
     if group is not None:
-        wrong = [s for s in group.spellings if s != group.canonical]
+        spellings = list(group.spellings)
+        wrong = [s for s in spellings if s != group.canonical]
         canonical = group.canonical
         title = f"{', '.join(wrong)} → {canonical}" if wrong else canonical
         where = _where(findings)
         verb = {"heard": "viewers hear", "seen": "viewers see", "notes": "the scripts write"}.get(
             where, "viewers hear"
         )
-        all_of = "both" if len(group.spellings) == 2 else f"all {word(len(group.spellings))}"
+        all_of = "both" if len(spellings) == 2 else f"all {word(len(spellings))}"
         look = "look" if len(wrong) > 1 else "looks"
         sentence = (
             f"{_quote(wrong)} {look} like '{canonical}'. "
             f"{word(len(findings)).capitalize()} place{'s' if len(findings) != 1 else ''}, "
-            f"{word(len(group.spellings))} spellings: {verb} {all_of}."
+            f"{word(len(spellings))} spellings: {verb} {all_of}."
         )
-        options, default, reason = tuple(group.spellings), group.canonical, safe_text(group.reason)
+        options, default, reason = tuple(spellings), canonical, safe_text(group.reason)
+        candidate = candidates.get(group.id.split(".", 1)[0])
+        # Count only this card's spellings: one look-alike candidate can hold two families.
+        counts = (
+            {s: n for s, n in dict(candidate.spellings).items() if s in spellings}
+            if candidate is not None
+            else {}
+        )
+        if counts:
+            problem = (
+                f"One name is written {len(spellings)} ways: "
+                f"{_counted(spellings, counts)}. Viewers would hear all of them."
+            )
+            most = max(counts.values())
+            if counts.get(canonical, 0) < most:
+                why = _picked_why(canonical, counts, "times")
+            else:
+                total = sum(counts.get(s, 0) for s in spellings)
+                why = (
+                    f"'{canonical}' is the spelling the script uses most "
+                    f"({counts.get(canonical, 0)} of {total})."
+                )
+        else:
+            problem = (
+                f"One name is written {len(spellings)} ways: {', '.join(spellings)}. "
+                "Viewers would hear all of them."
+            )
+            why = f"'{canonical}' is the spelling used most often."
     else:
         spellings = [part.strip() for part in first.found.split(" / ") if part.strip()]
         title = f"{_join_and(spellings)}?"
@@ -200,6 +264,9 @@ def _name_card(key: str, findings: list, groups: dict) -> Card:
         if len(spellings) < 2:
             sentence = f"The AI was not sure about '{first.found}'. You decide."
         options, default, reason = (), "", safe_text(first.context)
+        named = _join_and(spellings) if len(spellings) > 1 else f"'{first.found}'"
+        problem = f"The AI could not tell whether {named} are one name."
+        why = "If they are, give them one name. If not, leave both."
     lane = _lane(findings, fixable)
     return Card(
         id=key,
@@ -212,6 +279,8 @@ def _name_card(key: str, findings: list, groups: dict) -> Card:
         fixable=fixable,
         episodes=episodes,
         how_found=_badge(findings),
+        problem=safe_text(problem),
+        why=safe_text(why),
         options=options,
         default=default,
         reason=reason,
@@ -220,13 +289,14 @@ def _name_card(key: str, findings: list, groups: dict) -> Card:
     )
 
 
-def _voice_card(key: str, findings: list, groups: dict) -> Card:
+def _voice_card(key: str, findings: list, groups: dict, stats: dict) -> Card:
     spot = key.split(":", 1)[1]
     group = groups.get(spot)
     first = findings[0]
     fixable = tuple(f.id for f in findings if is_fixable(f))
     episodes = tuple(sorted({int(f.ep) for f in findings if f.ep}))
     lane = _lane(findings, fixable)
+    problem, why = "", ""
     if group is not None and group.intentional:
         labels = ", ".join(group.labels)
         title = f"{labels} → one voice"
@@ -236,6 +306,8 @@ def _voice_card(key: str, findings: list, groups: dict) -> Card:
         )
         options, default = tuple(group.labels), group.canonical
         reason = safe_text(group.reason)
+        problem = "The AI says these labels hide one person on purpose (a disguise or a reveal)."
+        why = "Nothing to rename. Cast one voice for all of them."
     elif group is not None:
         wrong = [label for label in group.labels if label != group.canonical]
         title = f"{', '.join(wrong)} → {group.canonical}"
@@ -249,6 +321,31 @@ def _voice_card(key: str, findings: list, groups: dict) -> Card:
         )
         options, default = tuple(group.labels), group.canonical
         reason = safe_text(group.reason)
+        labels = list(group.labels)
+        counts = {label: stats[label].lines for label in labels if label in stats}
+        if counts:
+            parts = [f"{label} ({counts.get(label, 0)} lines)" for label in labels]
+            problem = (
+                f"One character speaks under {len(labels)} labels: {_join_and(parts)}. "
+                f"Each label gets its own voice, so one person would sound like "
+                f"{word(len(labels))} people."
+            )
+            total = sum(counts.values())
+            most = max(counts.values())
+            if counts.get(group.canonical, 0) < most:
+                why = _picked_why(group.canonical, counts, "lines")
+            else:
+                why = (
+                    f"'{group.canonical}' is the label used most "
+                    f"({counts.get(group.canonical, 0)} of {total} lines)."
+                )
+        else:
+            problem = (
+                f"One character speaks under {len(labels)} labels: {_join_and(labels)}. "
+                f"Each label gets its own voice, so one person would sound like "
+                f"{word(len(labels))} people."
+            )
+            why = f"'{group.canonical}' is the label used most."
     elif spot.startswith("unsure:"):
         labels = [part for part in spot[len("unsure:"):].split("+") if part]
         title = f"{' or '.join(labels)}?"
@@ -256,16 +353,31 @@ def _voice_card(key: str, findings: list, groups: dict) -> Card:
             f"The AI was not sure whether {_join_and(labels)} are one person. You decide."
         )
         options, default, reason = (), "", safe_text(first.context)
+        problem = f"The AI could not tell whether {_join_and(labels)} are one person."
+        why = "If they are, give them one label. If not, leave both."
     elif spot.startswith("veto:"):
         labels = spot[len("veto:"):]
         title = f"{labels}?"
         found = first.found.rstrip(".").replace(" matched to ", " was matched to ", 1)
         sentence = f"{found}. They may be two people."
         options, default, reason = (), "", safe_text(first.context)
+        match = re.match(r"(.+?) was matched to (.+?), but both speak in (.+)", found + ".")
+        if match:
+            person, other, when = match.groups()
+            scene = _scene_short(re.match(r"(E\d+ S\d+)", when).group(1)) if re.match(r"(E\d+ S\d+)", when) else when
+            problem = (
+                f"{person} was matched to {other}, but both speak in {scene}, "
+                "so they may be two people."
+            )
+        else:
+            problem = found + "."
+        why = "If so, give one of them a new label."
     else:
         title = first.where
         sentence = safe_text(first.found)
         options, default, reason = (), "", safe_text(first.context)
+        problem = safe_text(first.found).rstrip(".") + "." if first.found else "Canon could not decide this."
+        why = "Read the lines, then decide."
     return Card(
         id=key,
         kind="voice",
@@ -277,6 +389,8 @@ def _voice_card(key: str, findings: list, groups: dict) -> Card:
         fixable=fixable,
         episodes=episodes,
         how_found=_badge(findings),
+        problem=safe_text(problem),
+        why=safe_text(why),
         options=options,
         default=default,
         reason=reason,
@@ -290,8 +404,15 @@ def _time_card(key: str, findings: list) -> Card:
     edit = first.edit
     fixable = tuple(f.id for f in findings if is_fixable(f))
     episodes = tuple(sorted({int(f.ep) for f in findings if f.ep}))
+    caution = " If time passes between the two places, this is not a mistake."
+    left, right = (first.where.split(" -> ") + ["", ""])[:2]
+    left_label, right_label = _scene_short(left), _scene_short(right)
+    times = (first.found.split(" -> ") + ["", ""])[:2]
+    early = times[0].split(" ")[0] if times[0] else ""
+    late = times[1].split(" ")[0] if len(times) > 1 and times[1] else ""
     if edit is not None:
         target = _label_at(edit.at)
+        target_short = _scene_short(target)
         before, after = (first.where.split(" -> ") + ["", ""])[:2]
         earlier = first.found.split(" -> ")[0].split(" ")[0]
         sentence = (
@@ -304,10 +425,43 @@ def _time_card(key: str, findings: list) -> Card:
                 f"Fix: {target} → {edit.new}."
             )
         title = f"{target}: {edit.old} → {edit.new}"
+        if len(findings) > 1:
+            problem = (
+                f"{target_short} is {edit.old} between {edit.new} scenes that continue the same moment. "
+                "The picture would jump."
+            )
+        else:
+            match = re.search(r'notes say "([^"]+)"', first.suggestion or "")
+            if match:
+                phrase = match.group(1).lower()
+                next_ep = right.split(" ")[0]
+                prev_ep = left.split(" ")[0]
+                if phrase.startswith(("immediately follows", "directly follows")):
+                    lead = f"The notes say {next_ep} {phrase} {prev_ep}"
+                else:
+                    lead = f"The notes say {next_ep} {phrase} after {prev_ep}"
+            else:
+                lead = f"The script calls the cut {left_label} → {right_label} continuous"
+            problem = (
+                f"{lead}, but {left_label} is {early} and {right_label} is {late}. "
+                f"The picture would jump from {early.lower()} to {late.lower()}."
+            )
+        both = len(findings) > 1 or "also differs" in (first.suggestion or "")
+        if both:
+            why = f"Canon suggests {edit.new} to match the scenes on both sides."
+        elif target_short == right_label:
+            why = f"Canon suggests {edit.new} to match the scene before it."
+        else:
+            why = f"Canon suggests {edit.new} to match the scene after it."
     else:
         sentence = safe_text(first.found)
         title = first.found.replace(" -> ", " → ")
         target = first.where
+        problem = (
+            f"{left_label} is {early} and {right_label} is {late}, but the cut continues "
+            "the same moment. The picture would jump."
+        )
+        why = "Check the two headings and edit the one that is wrong."
     return Card(
         id=key,
         kind="time",
@@ -319,6 +473,8 @@ def _time_card(key: str, findings: list) -> Card:
         fixable=fixable,
         episodes=episodes,
         how_found=_badge(findings),
+        problem=safe_text(problem + caution),
+        why=safe_text(why),
         group_id="time",
         findings=tuple(findings),
     )
@@ -331,6 +487,11 @@ def _place_card(key: str, finding) -> Card:
         f"The same moment is {_article(before)} {before} before the cut and "
         f"{_article(after)} {after} after it. Pick one and fix the heading."
     )
+    problem = (
+        f"In one continuous moment the building is {_article(before)} {before} before the cut "
+        f"and {_article(after)} {after} after it. The video would draw two different buildings."
+    )
+    why = "Canon can't tell which name is right. Pick one and edit the heading."
     return Card(
         id=key,
         kind="place",
@@ -342,6 +503,8 @@ def _place_card(key: str, finding) -> Card:
         fixable=(),
         episodes=(int(finding.ep),) if finding.ep else (),
         how_found=_badge([finding]),
+        problem=safe_text(problem),
+        why=safe_text(why),
         findings=(finding,),
     )
 
@@ -364,6 +527,11 @@ def _typo_card(key: str, findings: list) -> Card:
         )
     if first.source == "check":
         sentence += " Dictionary guess. Old words like 'gaol' are real."
+    problem = f"'{first.found}' is not an English word, so the voice would say it wrong."
+    if first.source == "ai":
+        why = f"The AI read the line and suggests '{new}'."
+    else:
+        why = "Closest dictionary word. Old words like 'gaol' are real, so check first."
     return Card(
         id=key,
         kind="typo",
@@ -375,6 +543,8 @@ def _typo_card(key: str, findings: list) -> Card:
         fixable=fixable,
         episodes=episodes,
         how_found=_badge(findings),
+        problem=safe_text(problem),
+        why=safe_text(why),
         findings=tuple(findings),
     )
 
@@ -390,6 +560,43 @@ def _format_card(key: str, findings: list) -> Card:
             f"{_episode_text(first.ep)} writes '{first.found}' in {word(len(findings))} places "
             f"where other episodes write '{first.suggestion}'."
         )
+    labels: list[str] = []
+    suggestions: list[str] = []
+    for finding in findings:
+        if finding.found not in labels:
+            labels.append(finding.found)
+        if finding.suggestion and finding.suggestion not in suggestions:
+            suggestions.append(finding.suggestion)
+    other = 0
+    for finding in findings:
+        match = re.search(r"(\d+)\s+episodes?", finding.context or "")
+        if match:
+            other = max(other, int(match.group(1)))
+    others = f"the other {other} episodes" if other else "the other episodes"
+    episode = _episode_text(first.ep)
+    caps = all(label.isupper() for label in labels)
+    if len(labels) == 1:
+        if caps:
+            problem = (
+                f"{episode} writes {labels[0]} in capitals; {others} "
+                f"write '{suggestions[0]}'."
+            )
+        else:
+            problem = (
+                f"{episode} writes {_quoted_list(labels)} where {others} "
+                f"write {_quoted_list(suggestions)}."
+            )
+    elif caps:
+        problem = (
+            f"{episode} writes {_join_and(labels)} in capitals; {others} "
+            f"write them as {_quoted_list(suggestions)}."
+        )
+    else:
+        problem = (
+            f"{episode} writes {_quoted_list(labels)} where {others} "
+            f"write {_quoted_list(suggestions)}."
+        )
+    why = "Tools that read scripts by these labels could miss this episode. It is a one-time edit."
     return Card(
         id=key,
         kind="format",
@@ -401,6 +608,8 @@ def _format_card(key: str, findings: list) -> Card:
         fixable=(),
         episodes=(int(first.ep),) if first.ep else (),
         how_found=_badge(findings),
+        problem=safe_text(problem),
+        why=safe_text(why),
         findings=tuple(findings),
     )
 
@@ -439,6 +648,8 @@ def build_cards(result: dict) -> list[Card]:
     findings = list(result.get("findings") or [])
     names = {group.id: group for group in result.get("name_groups") or []}
     speakers = {group.id: group for group in result.get("speaker_groups") or []}
+    candidates = {candidate.id: candidate for candidate in result.get("candidates") or []}
+    stats = result.get("stats") or {}
     buckets: dict[str, list] = {}
     for finding in findings:
         buckets.setdefault(_card_key(finding), []).append(finding)
@@ -446,9 +657,9 @@ def build_cards(result: dict) -> list[Card]:
     for key, grouped in buckets.items():
         first = grouped[0]
         if first.detector == "names":
-            cards.append(_name_card(key, grouped, names))
+            cards.append(_name_card(key, grouped, names, candidates))
         elif first.detector == "speakers":
-            cards.append(_voice_card(key, grouped, speakers))
+            cards.append(_voice_card(key, grouped, speakers, stats))
         elif first.detector == "joins":
             if key.startswith("time:"):
                 cards.append(_time_card(key, grouped))
@@ -529,11 +740,15 @@ def will_fix_count(cards: list[Card], fix: dict[str, bool] | None = None) -> int
 
 
 def progress_text(cards: list[Card], fix: dict[str, bool] | None = None, hand: dict[str, str] | None = None) -> str:
+    short = {"ready": "Ready", "check": "Check first", "hand": "Fix by hand"}
+    parts = []
+    for lane in LANES:
+        members = [card for card in cards if card.lane == lane]
+        done = sum(1 for card in members if is_decided(card, fix, hand))
+        parts.append(f"{short[lane]} {done} of {len(members)}")
     places = will_fix_count(cards, fix)
-    return (
-        f"{decided_count(cards, fix, hand)} of {len(cards)} decided · "
-        f"{places} {'place' if places == 1 else 'places'} will be fixed"
-    )
+    parts.append(f"{places} {'place' if places == 1 else 'places'} will be fixed")
+    return " · ".join(parts)
 
 
 def metrics(cards: list[Card]) -> dict[str, int]:
@@ -567,12 +782,43 @@ def change_rows(
                     "episode": int(finding.ep),
                     "time": finding.start,
                     "where": finding.where,
+                    "where_label": WHERE_LABELS[_severity_of(finding)],
+                    "context": finding.context,
                     "was": edit.old,
                     "now": new,
                     "issue": card.title,
+                    "kind": card.kind_label,
+                    "card": card.id,
                 }
             )
     return rows
+
+
+def issue_rows(
+    cards: list[Card],
+    fix: dict[str, bool] | None = None,
+    choices: dict[str, str] | None = None,
+) -> list[dict]:
+    """One entry per issue being fixed, with its change rows, in card order."""
+    rows = change_rows(cards, fix, choices)
+    by_card: dict[str, list[dict]] = {}
+    for row in rows:
+        by_card.setdefault(row["card"], []).append(row)
+    issues = []
+    for card in cards:
+        selected = by_card.get(card.id)
+        if not selected:
+            continue
+        issues.append(
+            {
+                "issue": card.title,
+                "kind": card.kind_label,
+                "places": len(selected),
+                "episodes": tuple(sorted({row["episode"] for row in selected if row["episode"]})),
+                "rows": selected,
+            }
+        )
+    return issues
 
 
 def by_hand_rows(cards: list[Card], hand: dict[str, str] | None = None) -> list[dict]:
@@ -588,6 +834,8 @@ def by_hand_rows(cards: list[Card], hand: dict[str, str] | None = None) -> list[
                 "where": getattr(spot, "where", ""),
                 "title": card.title,
                 "sentence": card.sentence,
+                "problem": card.problem,
+                "why": card.why,
             }
         )
     return rows
@@ -600,21 +848,59 @@ def download_summary(
 ) -> str:
     rows = change_rows(cards, fix)
     episodes = len({row["episode"] for row in rows if row["episode"]})
-    by_hand = sum(1 for card in cards if (hand or {}).get(card.id) == "by_hand")
+    issues = len({row["card"] for row in rows})
+    fixed = {row["card"] for row in rows}
+    check_left = sum(
+        1 for card in cards if card.lane == "check" and card.id not in fixed
+    )
+    hand_count = sum(1 for card in cards if card.lane == "hand")
     text = (
         f"Fixing {len(rows)} {'place' if len(rows) == 1 else 'places'} in "
-        f"{episodes} {'episode' if episodes == 1 else 'episodes'}."
+        f"{episodes} {'episode' if episodes == 1 else 'episodes'} across "
+        f"{issues} {'issue' if issues == 1 else 'issues'}."
     )
-    if by_hand:
-        text += f" {by_hand} {'issue' if by_hand == 1 else 'issues'} to fix by hand."
+    text += (
+        f" Not changed: {check_left} check-first and {hand_count} by-hand issues."
+    )
     return text + " Your original files are not changed."
+
+
+def apart_lines(result: dict) -> list[str]:
+    """One plain line per kept-apart pair, with no IDs and no spellings shown on a card."""
+    shown = {option for card in build_cards(result) for option in card.options}
+    grouped: dict[str, list[str]] = {}
+    for entry in result.get("apart") or []:
+        candidate = entry.get("candidate") or ""
+        for spelling in entry.get("spellings") or []:
+            if spelling not in grouped.setdefault(candidate, []):
+                grouped[candidate].append(spelling)
+    lines = []
+    for candidate in sorted(grouped):
+        spellings = [s for s in grouped[candidate] if s not in shown]
+        if len(spellings) < 2:
+            continue
+        lines.append(
+            f"{' · '.join(spellings)}: the AI judged these to be different names. No change."
+        )
+    return lines
 
 
 def all_text(cards: list[Card]) -> list[str]:
     """Every displayed card string, for the wording check."""
     text = []
     for card in cards:
-        text.extend([card.kind_label, card.where_label, card.title, card.sentence, card.how_found, card.reason])
+        text.extend(
+            [
+                card.kind_label,
+                card.where_label,
+                card.title,
+                card.sentence,
+                card.problem,
+                card.why,
+                card.how_found,
+                card.reason,
+            ]
+        )
         text.extend(card.options)
         text.append(card.default)
     return [item for item in text if item]
