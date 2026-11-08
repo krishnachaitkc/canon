@@ -1,0 +1,30 @@
+{
+ "refers": [
+  {
+   "spelling": "Ravenscar",
+   "refers_to": "Ravenscar Hall, the moorland estate with a library that the stranger seeks and is warned away from"
+  },
+  {
+   "spelling": "Ravenscourt",
+   "refers_to": "Ravenscourt Hall, the hall Edmund Thorn calls home and where Lord Hartwell's guard bars passage"
+  },
+  {
+   "spelling": "Ravensgar",
+   "refers_to": "Ravensgar Hall, the hall Lord Edmund claims as his by right"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Ravenscar",
+    "Ravenscourt",
+    "Ravensgar"
+   ],
+   "same_entity": true,
+   "entity_type": "place",
+   "canonical": "Ravenscar",
+   "confidence": "high",
+   "reason": "All three refer to the same Hall: E01 warning at Ravenscar Hall [1-2] matches Edmund's homecoming/claim in E02-E03 [4-5], and E03 has the header Ravenscar Hall [3] beside dialogue naming Ravensgar Hall [5]."
+  }
+ ]
+}

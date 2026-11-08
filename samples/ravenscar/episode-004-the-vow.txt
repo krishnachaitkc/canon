@@ -1,0 +1,56 @@
+EPISODE NUMBER: Episode 4
+EPISODE LOGLINE: As the vows begin in the chapel, a messenger brings the Crown's answer to Edmund's claim, and Margaret stands beside him.
+CONTINUITY NOTES: Picks up directly from Episode 3 inside the church, as the vows begin.
+
+--- SCRIPT START ---
+
+SCENE 01
+SCENE HEADING: INT. ST. ALBAN'S CHAPEL – CONTINUOUS
+Scene start: 00:00.00
+Scene end: 01:10.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:05.00)
+Medium shot of Edmund and Margaret at the altar rail, a nervous priest opening his book.
+
+**SOUND FX:**
+Start: (00:00.00) | End: (00:04.00)
+The last echo of the bells fading.
+
+**CAMERA:**
+Start: (00:05.00) | End: (00:09.00)
+Wide shot as the side door bangs open and a mud-spattered messenger strides down the aisle.
+
+**STRANGER (Breathless):**
+Start: (00:09.20) | End: (00:12.80)
+"A message for Edmund Thorne, from the Crown."
+
+**EDMUND (Commanding):**
+Start: (00:13.00) | End: (00:15.40)
+"Read it here, before witnesses."
+
+**STRANGER (Reading):**
+Start: (00:15.80) | End: (00:20.40)
+"The Crown recognises the claim. The Hartwells are to quit the house by midsummer."
+
+**CAMERA:**
+Start: (00:20.40) | End: (00:26.00)
+Close-up of Margaret's eyes filling with tears as she grips the ledger.
+
+**EDMUND (Tender):**
+Start: (00:26.20) | End: (00:28.60)
+"Margarett, stand beside me."
+
+**MARGARET (Certain):**
+Start: (00:29.00) | End: (00:30.60)
+"Always."
+
+**ACTION:**
+Start: (00:30.60) | End: (00:40.00)
+Edmund takes Margaret's hand as the priest begins the vows.
+
+**CAMERA:**
+Start: (00:40.00) | End: (01:10.00)
+Slow pull-back wide shot of the couple before the altar as candlelight flickers across the stone, holding until fade to black.

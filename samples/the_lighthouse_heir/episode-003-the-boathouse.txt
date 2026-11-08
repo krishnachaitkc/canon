@@ -1,0 +1,110 @@
+EPISODE NUMBER: Episode 3
+EPISODE LOGLINE: A letter from the mainland sends Mira down to the boathouse, where someone is already waiting.
+CONTINUITY NOTES: Follows Episode 2. The stranger's map now points to the northern reef.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: INT. LIGHTHOUSE KITCHEN - MORNING
+Scene start: 00:00.00
+Scene end: 01:15.00
+
+ACTIONS AND DIALOGUE:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:04.00)
+A kettle screams on the stove in the low stone kitchen.
+
+**CAMERA:**
+Start: (00:04.00) | End: (00:09.00)
+Mira sits across from the housekeeper at a scarred table.
+
+**HOUSEKEEPER (Firm):**
+Start: (00:06.90) | End: (00:09.50)
+"Your father is not coming back."
+
+**CAMERA:**
+Start: (00:09.50) | End: (00:15.00)
+Mira sets down her cup without a sound.
+
+**MIRA (Even):**
+Start: (00:10.00) | End: (00:13.50)
+"You do not know that."
+
+**CAMERA:**
+Start: (00:15.00) | End: (00:21.00)
+The housekeeper slides a sealed letter across the table.
+
+**HOUSEKEEPER (Quiet):**
+Start: (00:15.60) | End: (00:19.60)
+"This came from the mainland this morning."
+
+**CAMERA:**
+Start: (00:21.00) | End: (00:27.00)
+Mira breaks the wax seal with her thumb.
+
+**ACTION:**
+Start: (00:21.50) | End: (00:25.50)
+Her eyes move quickly over the handwritten lines.
+
+**CAMERA:**
+Start: (00:27.00) | End: (00:33.00)
+Close-up on the letter: a map of the northern reef.
+
+**MIRA (Breathless):**
+Start: (00:27.80) | End: (00:31.80)
+"He marked a channel that is not on any chart."
+
+**CAMERA:**
+Start: (00:33.00) | End: (00:39.00)
+The housekeeper leans closer, her shadow crossing the page.
+
+**HOUSEKEEPER (Urgent):**
+Start: (00:33.60) | End: (00:37.60)
+"Then someone wanted you to find it."
+
+**CAMERA:**
+Start: (00:39.00) | End: (00:45.00)
+Mira folds the letter and rises from the table.
+
+**MIRA (Firm):**
+Start: (00:39.60) | End: (00:43.60)
+"Ready the boat."
+
+**CAMERA:**
+Start: (00:45.00) | End: (00:51.00)
+EXT. CLIFF STAIRS - MOMENTS LATER. Wind tears at her coat.
+
+**ACTION:**
+Start: (00:45.70) | End: (00:49.70)
+Mira descends two steps at a time toward the boathouse.
+
+**CAMERA:**
+Start: (00:51.00) | End: (00:57.00)
+The boathouse door hangs open, its lock broken.
+
+**MIRA (Alarmed):**
+Start: (00:51.80) | End: (00:55.80)
+"Father?"
+
+**CAMERA:**
+Start: (00:57.00) | End: (01:03.00)
+A figure waits in the shadows beside the boat.
+
+**STRANGER (Low):**
+Start: (00:57.80) | End: (01:01.80)
+"He knew you would come."
+
+**CAMERA:**
+Start: (01:03.00) | End: (01:10.00)
+Mira stops at the threshold, the letter crushed in her fist.
+
+**MIRA (Steady):**
+Start: (01:03.80) | End: (01:07.80)
+"Where is he?"
+
+**CAMERA:**
+Start: (01:10.00) | End: (01:15.00)
+The stranger steps into the light and smiles.
+
+--- SCRIPT END ---

@@ -1,0 +1,30 @@
+{
+ "refers": [
+  {
+   "spelling": "Thorne",
+   "refers_to": "Edmund Thorne, the returning protagonist"
+  },
+  {
+   "spelling": "Thomson",
+   "refers_to": "Edmund Thomson, addressed by Margaret as Lord Edmund"
+  },
+  {
+   "spelling": "Thorn",
+   "refers_to": "Edmund Thorn, returning to Ravenscourt Hall"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Thorne",
+    "Thomson",
+    "Thorn"
+   ],
+   "same_entity": true,
+   "entity_type": "person",
+   "canonical": "Thorne",
+   "confidence": "high",
+   "reason": "Snippets [1]-[3] name Edmund Thorne, [4] has Margaret address Lord Edmund as Edmund Thomson, and [5] has Edmund call himself Edmund Thorn, so all three are the same person's surname and Thorne is the most frequent."
+  }
+ ]
+}

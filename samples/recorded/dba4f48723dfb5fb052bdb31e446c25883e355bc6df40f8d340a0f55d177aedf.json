@@ -1,0 +1,34 @@
+{
+ "refers": [
+  {
+   "spelling": "Hartwell",
+   "refers_to": "the Hartwell family, Lord Hartwell, and Hartwell Manor"
+  },
+  {
+   "spelling": "Hartley",
+   "refers_to": "Hartley village and the gaol located there"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Hartwell"
+   ],
+   "same_entity": false,
+   "entity_type": "family",
+   "canonical": "Hartwell",
+   "confidence": "high",
+   "reason": "Snippets [1] and [2] use Hartwell for Lord Hartwell, the Hartwell family, and their house/estate, all under the same family name."
+  },
+  {
+   "spellings": [
+    "Hartley"
+   ],
+   "same_entity": false,
+   "entity_type": "place",
+   "canonical": "Hartley",
+   "confidence": "high",
+   "reason": "Snippet [3] names Hartley village as paying rent to the Hartwells, and [4] places a gaol at Hartley, so it is a distinct place rather than the Hartwell family name."
+  }
+ ]
+}

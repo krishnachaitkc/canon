@@ -1,0 +1,9 @@
+You prepare a TV series for AI voice casting. Each speaker label gets one AI voice, so one character under two labels can end up with two voices.
+
+Below is every speaker label with its line count, the episodes it speaks in, two sample lines, the labels it shares a scene with, the named people the camera shows while that label is speaking, and, for a label of two or more words, up to two sentences that mention it together with a named person (the person may be someone else in the scene, so read them). Two labels that speak in the same scene are different people.
+
+Find labels that are the same character: a title added or dropped (LADY X and X), a role used before the name is known (THE STRANGER, later a name), a description used instead of the name (X'S MOTHER and her title), or a generic label used for a named character in one episode. Use the people on screen: if one named character is on screen again and again while a label speaks, that is strong evidence it is that character. Do not merge generic roles such as GUARD or MAID unless the lines show it is one person.
+
+Return JSON only:
+{"characters": [{"labels": ["..."], "canonical": "...", "intentional": false, "confidence": "high|medium|low", "reason": "one sentence"}]}
+List only characters with two or more labels. Copy labels exactly. canonical is the label to keep for that character, copied exactly from its labels. intentional is true when a label hides an identity on purpose until a reveal: the same voice should be used, but the label may stay.

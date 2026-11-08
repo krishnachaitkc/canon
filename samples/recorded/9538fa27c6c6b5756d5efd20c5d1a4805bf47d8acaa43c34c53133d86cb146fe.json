@@ -1,0 +1,28 @@
+{
+ "words": [
+  {
+   "word": "gaol",
+   "verdict": "valid",
+   "correction": "",
+   "reason": "Archaic British spelling of jail; period-appropriate."
+  },
+  {
+   "word": "gentelman",
+   "verdict": "typo",
+   "correction": "gentleman",
+   "reason": "Misspelling; voice would say it wrongly."
+  },
+  {
+   "word": "recognises",
+   "verdict": "valid",
+   "correction": "",
+   "reason": "British spelling; real word."
+  },
+  {
+   "word": "seizzure",
+   "verdict": "typo",
+   "correction": "seizure",
+   "reason": "Misspelling with extra z."
+  }
+ ]
+}

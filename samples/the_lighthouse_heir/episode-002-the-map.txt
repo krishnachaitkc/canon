@@ -1,0 +1,98 @@
+EPISODE NUMBER: Episode 2
+EPISODE LOGLINE: A stranger offers Mira a map marked by her missing father, and the lighthouse answers with a signal of its own.
+CONTINUITY NOTES: The next morning, Mira still carries the brass key.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: EXT. HARBOR - DAWN
+Scene start: 00:00.00
+Scene end: 01:08.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:05.00)
+Fishing boats knock against the pier in the grey morning light.
+
+**ACTION:**
+Start: (00:01.00) | End: (00:04.00)
+Mira waits beneath a rusted lamp, the brass key hidden in her sleeve.
+
+**CAMERA:**
+Start: (00:05.00) | End: (00:10.00)
+A stranger in a grey coat steps off the gangway.
+
+**STRANGER (Quiet):**
+Start: (00:05.80) | End: (00:09.50)
+"You have something that belongs to me."
+
+**CAMERA:**
+Start: (00:10.00) | End: (00:16.00)
+Close-up on Mira's hand tightening around the key.
+
+**MIRA (Defiant):**
+Start: (00:10.50) | End: (00:14.50)
+"I have nothing for you."
+
+**CAMERA:**
+Start: (00:16.00) | End: (00:22.00)
+The stranger lifts a folded map and holds it out.
+
+**STRANGER (Measured):**
+Start: (00:16.60) | End: (00:20.60)
+"Then perhaps you will want this instead."
+
+**CAMERA:**
+Start: (00:22.00) | End: (00:28.00)
+Mira takes the map; her breath catches.
+
+**ACTION:**
+Start: (00:22.50) | End: (00:26.50)
+The paper shows the lighthouse marked in red ink.
+
+**CAMERA:**
+Start: (00:28.00) | End: (00:35.00)
+The stranger turns away toward the boats.
+
+**STRANGER (Over his shoulder):**
+Start: (00:28.50) | End: (00:32.50)
+"Your father drew that map. Ask him what it means."
+
+**CAMERA:**
+Start: (00:35.00) | End: (00:42.00)
+Mira stands alone as the harbor bell begins to toll.
+
+**SOUND FX:**
+Start: (00:36.00) | End: (00:40.50)
+A low bell, three slow strikes, fading into wind.
+
+**CAMERA:**
+Start: (00:42.00) | End: (00:49.00)
+She folds the map and looks toward the cliff road.
+
+**MIRA (Resolute):**
+Start: (00:43.00) | End: (00:47.00)
+"Then I will ask him myself."
+
+**CAMERA:**
+Start: (00:49.00) | End: (00:56.00)
+The road climbs out of frame into white morning fog.
+
+**ACTION:**
+Start: (00:50.00) | End: (00:54.50)
+Mira starts walking, the key swinging at her throat.
+
+**CAMERA:**
+Start: (00:56.00) | End: (01:03.00)
+The lighthouse stands black against the rising sun.
+
+**MIRA (Whispering):**
+Start: (00:58.00) | End: (01:02.00)
+"Wait for me."
+
+**CAMERA:**
+Start: (01:03.00) | End: (01:08.00)
+Cut to black.
+
+--- SCRIPT END ---

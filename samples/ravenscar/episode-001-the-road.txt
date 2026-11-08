@@ -1,0 +1,91 @@
+EPISODE NUMBER: Episode 1
+EPISODE LOGLINE: On a storm-dark moor road, a stranger asks the way to Ravenscar Hall, and a hooded figure warns him that the hall has no welcome for him.
+CONTINUITY NOTES: First episode. Establishes Edmund Thorne's return, the hooded figure who watches him, and the cabin on the moor.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: EXT. MOOR ROAD – NIGHT
+Scene start: 00:00.00
+Scene end: 00:38.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:05.00)
+Wide shot of a low stone cottage on the black moor, one candle burning in its window, rain sweeping across the road.
+
+**SOUND FX:**
+Start: (00:00.00) | End: (00:05.00)
+Rain hammering on heather and a distant roll of thunder.
+
+**ACTION:**
+Start: (00:01.00) | End: (00:05.00)
+A tall man in a wet greatcoat trudges up the road, collar raised against the wind.
+
+**CAMERA:**
+Start: (00:05.00) | End: (00:09.00)
+Medium shot as a hooded figure steps out from behind a crooked gatepost, blocking the road.
+
+**CAMERA:**
+Start: (00:09.00) | End: (00:14.00)
+Over-the-shoulder shot past Edmund onto the hooded figure, only a pale chin visible beneath the hood.
+
+**STRANGER (Wary):**
+Start: (00:09.20) | End: (00:11.80)
+"Is this the road to Ravenscar Hall?"
+
+**HOODED FIGURE (Low, Warning):**
+Start: (00:12.00) | End: (00:15.80)
+"Turn back. Ravenscar Hall has no welcome for you."
+
+**STRANGER (Steady):**
+Start: (00:16.20) | End: (00:18.40)
+"I am not looking for a welcome."
+
+**CAMERA:**
+Start: (00:18.50) | End: (00:24.00)
+Wide shot as the hooded figure turns and hurries toward the cottage door, the stranger following through the rain.
+
+**ACTION:**
+Start: (00:24.00) | End: (00:38.00)
+The stranger reaches the doorway and ducks inside after the hooded figure.
+
+SCENE 02
+Scene heading: INT. TIMBER CABIN – CONTINUOUS
+Scene start: 00:38.00
+Scene end: 01:16.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:38.00) | End: (00:43.00)
+Medium shot inside the cramped room, rain streaming down the window; far off on the hill, the lights of Ravenscar Hall burn through the storm.
+
+**HOODED FIGURE (Sharp):**
+Start: (00:43.20) | End: (00:45.40)
+"Who sent you here?"
+
+**CAMERA:**
+Start: (00:45.40) | End: (00:50.00)
+Close-up of the man pushing back his wet hair, revealing a thin scar across his brow.
+
+**EDMUND (Quiet, Certain):**
+Start: (00:45.60) | End: (00:48.60)
+"No one sent me. My name is Edmund Thorne."
+
+**HOODED FIGURE (Shaken):**
+Start: (00:50.20) | End: (00:54.00)
+"Then you have come home to die, Edmund Thorne."
+
+**ACTION:**
+Start: (00:54.00) | End: (01:00.00)
+The hooded figure snuffs the candle with two fingers, plunging the room into darkness.
+
+**EDMUND (Grim):**
+Start: (01:00.50) | End: (01:03.50)
+"I have died before. It did not take."
+
+**CAMERA:**
+Start: (01:04.00) | End: (01:16.00)
+Extreme close-up of Edmund's eyes in the dark, lit only by a flash of lightning, holding until cut to black.

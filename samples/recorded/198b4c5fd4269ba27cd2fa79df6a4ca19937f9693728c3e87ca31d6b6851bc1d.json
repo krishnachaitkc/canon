@@ -1,0 +1,25 @@
+{
+ "refers": [
+  {
+   "spelling": "Margaret",
+   "refers_to": "the woman unmasked with Edmund's ledger and taking Edmund's hand at the vows"
+  },
+  {
+   "spelling": "Margarett",
+   "refers_to": "the woman Edmund addresses beside him, answered as MARGARET"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Margaret",
+    "Margarett"
+   ],
+   "same_entity": true,
+   "entity_type": "person",
+   "canonical": "Margaret",
+   "confidence": "high",
+   "reason": "Snippets [1]-[3] show the same woman, and the spoken \"Margarett\" in [3] is immediately answered as MARGARET, making it a misspelling of the more frequent Margaret."
+  }
+ ]
+}

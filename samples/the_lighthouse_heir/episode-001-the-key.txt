@@ -1,0 +1,121 @@
+EPISODE NUMBER: Episode 1
+EPISODE LOGLINE: Mira returns to the lighthouse she inherited and finds the housekeeper guarding a door that should have been left open.
+CONTINUITY NOTES: First episode. Establishes Mira, the lighthouse, the brass key and the housekeeper.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: INT. LIGHTHOUSE STAIRWELL - DUSK
+Scene start: 00:00.00
+Scene end: 00:42.00
+
+ACTIONS AND DIALOGUE:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:04.00)
+Wide shot of a storm-battered lighthouse on a granite cliff at dusk.
+
+**ACTION:**
+Start: (00:01.00) | End: (00:04.00)
+Mira climbs the spiral stairs with a brass key clenched in one fist.
+
+**CAMERA:**
+Start: (00:04.00) | End: (00:09.00)
+Close-up on the key as it catches the lantern light.
+
+**MIRA (Commanding, Resounding):**
+Start: (00:04.50) | End: (00:08.50)
+"This lighthouse belongs to my father."
+
+**CAMERA:**
+Start: (00:09.00) | End: (00:14.00)
+A stern housekeeper in a black velvet gown blocks the stairwell.
+
+**HOUSEKEEPER (O.S.) (Firm):**
+Start: (00:09.80) | End: (00:11.80)
+"Then prove it."
+
+**CAMERA:**
+Start: (00:14.00) | End: (00:20.00)
+Mira raises the key toward the lantern room door.
+
+**CAMERA:**
+Start: (00:20.00) | End: (00:23.00)
+The housekeeper's hand closes over the key.
+
+**HOUSEKEEPER (Cold):**
+Start: (00:22.00) | End: (00:24.50)
+"Keys can be lost at sea, too."
+
+**CAMERA:**
+Start: (00:24.50) | End: (00:30.00)
+Mira pulls her hand free and steps back toward the stairs.
+
+**CAMERA:**
+Start: (00:30.00) | End: (00:36.00)
+A distant foghorn answers the wind.
+
+**ACTION:**
+Start: (00:30.50) | End: (00:34.00)
+Mira tucks the key into her sleeve and vanishes into the dark.
+
+**CAMERA:**
+Start: (00:36.00) | End: (00:42.00)
+The housekeeper turns to the empty stairwell.
+
+**HOUSEKEEPER (Suspicious):**
+Start: (00:36.50) | End: (00:40.50)
+"She is her father's daughter after all."
+
+SCENE 02
+Scene heading: INT. LANTERN ROOM - NIGHT
+Scene start: 00:42.00
+Scene end: 01:20.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:42.00) | End: (00:47.00)
+Mira locks the lantern room door behind her.
+
+**ACTION:**
+Start: (00:42.50) | End: (00:46.00)
+The great lamp is dark, its glass crusted with salt.
+
+**CAMERA:**
+Start: (00:47.00) | End: (00:53.00)
+Close-up on Mira's face as the beam sputters to life.
+
+**MIRA (Whispering):**
+Start: (00:47.50) | End: (00:51.50)
+"One more night, Father."
+
+**CAMERA:**
+Start: (00:53.00) | End: (01:00.00)
+A ship's light answers from the black water below.
+
+**ACTION:**
+Start: (00:53.50) | End: (00:58.50)
+A single answering flash blinks three times, then dies.
+
+**CAMERA:**
+Start: (01:00.00) | End: (01:06.00)
+Mira presses her palm to the cold glass.
+
+**MIRA (Resolute):**
+Start: (01:00.50) | End: (01:04.50)
+"I know you are out there."
+
+**CAMERA:**
+Start: (01:06.00) | End: (01:12.00)
+The fog rolls over the cliff path below.
+
+**HOUSEKEEPER (O.S.) (Firm):**
+Start: (01:06.50) | End: (01:10.50)
+"Mira. Open this door."
+
+**CAMERA:**
+Start: (01:12.00) | End: (01:18.00)
+Mira does not move as the knocking grows louder.
+
+--- SCRIPT END ---

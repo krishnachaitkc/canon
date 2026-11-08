@@ -1,0 +1,14 @@
+You check a TV series script for name continuity. The show is voiced by AI, so a name spelled two ways is spoken two ways.
+
+Below is one group of similar names found in the script, with the reason code put them together. For each spelling you get its count and numbered snippets, each with its episode and where it appears (spoken = a character says it; shot or action = scene description; header = episode notes or scene heading).
+
+First, for every spelling, say in a few words what it refers to in its snippets: whose family, which house or estate, which title, which person, which village.
+
+Then decide which spellings are the same name. Treat a family and everything named after it as one name: its members' surnames, its house or estate, its title, its crest and its lands ("Edmund X", "the X family", "X Manor", "Duke of X" and "the X crest" should all use the same X). Group every spelling used for the same family or for anything named after it, even when one snippet is about the house and another about a person. Two different families, or a family and an unrelated place, are different names even when they look alike. Decide from the snippets, not the spelling; if the snippets do not show that two spellings belong to the same family or the same thing, keep them apart. A spelling used once as a deliberate alias or disguise is still the same person; say so in the reason.
+
+For each set of spellings that is one name, pick the canonical spelling: the one the script uses most often across all mentions, unless the snippets show that one is the error.
+
+Return JSON only:
+{"refers": [{"spelling": "...", "refers_to": "a few words"}],
+ "groups": [{"spellings": ["..."], "same_entity": true, "entity_type": "person|family|place|org|other", "canonical": "...", "confidence": "high|medium|low", "reason": "one sentence that cites snippet numbers"}]}
+Every spelling appears once in refers and in exactly one group, copied exactly. A spelling that stands alone is a group of one with same_entity false.

@@ -1,0 +1,98 @@
+EPISODE NUMBER: Episode 2
+EPISODE LOGLINE: At the gates of the hall, the Crown's guards turn Edmund away, and a warning reveals who now holds his family's land.
+CONTINUITY NOTES: Picks up immediately after Episode 1's cliffhanger: Edmund walks from the cabin to the hall gates.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: EXT. HALL GATES – DAY
+Scene start: 00:00.00
+Scene end: 00:44.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:05.00)
+Wide shot of tall iron gates under a pale grey sky, two armed guards posted before them.
+
+**ACTION:**
+Start: (00:01.00) | End: (00:05.00)
+Edmund strides up the gravel drive, greatcoat still dark with rain.
+
+**GUARD (Gruff):**
+Start: (00:05.20) | End: (00:07.00)
+"Halt. State your business."
+
+**ROYAL GUARD (Stern):**
+Start: (00:07.20) | End: (00:09.80)
+"By order of the Crown, no one passes."
+
+**CAMERA:**
+Start: (00:10.00) | End: (00:15.00)
+Medium two-shot of the guards exchanging a wary glance.
+
+**EDMUND (Firm):**
+Start: (00:10.00) | End: (00:15.00)
+"Tell Lord Hartwell that Edmund Thorn has come home to Ravenscourt Hall."
+
+**GUARD (Dismissive):**
+Start: (00:15.40) | End: (00:18.00)
+"Lord Hartwell's orders are plain."
+
+**ROYAL GUARD (Cold):**
+Start: (00:18.20) | End: (00:23.40)
+"The Hartwells hold this house now, and Hartley village pays them rent."
+
+**ROYAL GUARD (Threatening):**
+Start: (00:23.60) | End: (00:28.00)
+"Argue, and you will face the Crown's seizzure of everything you own."
+
+**CAMERA:**
+Start: (00:28.00) | End: (00:36.00)
+Close-up of Edmund's jaw tightening as he studies the crest worked into the iron gates.
+
+**EDMUND (Quiet):**
+Start: (00:36.20) | End: (00:39.00)
+"Then I will come back with proof."
+
+**ACTION:**
+Start: (00:39.00) | End: (00:44.00)
+Edmund turns on his heel and walks away down the drive.
+
+SCENE 02
+Scene heading: INT. HARTWELL MANOR – CORRIDOR – NIGHT
+Scene start: 00:44.00
+Scene end: 01:04.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:44.00) | End: (00:50.00)
+Low-angle tracking shot down a candlelit corridor of the manor as a hooded figure slips between the portraits.
+
+**HOODED FIGURE (Whispering):**
+Start: (00:50.20) | End: (00:53.00)
+"He is back. Tell no one."
+
+**CAMERA:**
+Start: (00:53.00) | End: (01:04.00)
+Medium shot as the hooded figure pushes open a heavy study door.
+
+SCENE 03
+Scene heading: INT. HARTWELL MANOR – STUDY – CONTINUOUS
+Scene start: 01:04.00
+Scene end: 01:22.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (01:04.00) | End: (01:10.00)
+Close-up of a leather-bound ledger lying open on the desk beside a guttering candle.
+
+**HOODED FIGURE (Resolute):**
+Start: (01:10.20) | End: (01:13.40)
+"The ledger is still here. I will keep it safe."
+
+**ACTION:**
+Start: (01:13.40) | End: (01:22.00)
+The hooded figure closes the ledger and hides it inside her cloak as footsteps approach.

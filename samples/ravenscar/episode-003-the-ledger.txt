@@ -1,0 +1,75 @@
+EPISODE NUMBER: Episode 3
+EPISODE LOGLINE: In the library of the hall, the hooded figure is unmasked as Margaret, who has kept the ledger that proves Edmund's claim.
+CONTINUITY NOTES: Follows directly on from Episode 2, the next morning, after Edmund returns with the steward's keys.
+
+--- SCRIPT START ---
+
+SCENE 01
+Scene heading: INT. RAVENSCAR HALL – LIBRARY – DAY
+Scene start: 00:00.00
+Scene end: 00:42.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:00.00) | End: (00:05.00)
+Wide shot of a dusty library washed in morning light, Edmund standing at the tall window.
+
+**LORD EDMUND (Defiant):**
+Start: (00:05.20) | End: (00:08.40)
+"Ravensgar Hall is mine by right."
+
+**CAMERA:**
+Start: (00:08.40) | End: (00:13.00)
+Medium shot of the hooded figure stepping out from behind a bookcase.
+
+**ACTION:**
+Start: (00:13.00) | End: (00:17.00)
+The hooded figure lowers her hood: it is Margaret, the steward's daughter.
+
+**MARGARET (Steady):**
+Start: (00:17.20) | End: (00:21.00)
+"Then take this. I kept your ledger safe, Edmund Thomson."
+
+**LORD EDMUND (Moved):**
+Start: (00:21.40) | End: (00:25.60)
+"Only a gentelman's daughter would keep such a promise."
+
+**MARGARET (Bitter):**
+Start: (00:26.00) | End: (00:30.40)
+"My father died in the gaol at Hartley for this ledger."
+
+**MARGARET (Soft):**
+Start: (00:30.80) | End: (00:33.40)
+"Swear you will finish it, and I shall follow thee."
+
+**CAMERA:**
+Start: (00:33.40) | End: (00:42.00)
+Close-up of their hands meeting over the ledger's cracked leather cover.
+
+SCENE 02
+Scene heading: INT. ST. ALBAN'S CATHEDRAL – NAVE – DAY
+Scene start: 00:42.00
+Scene end: 01:14.00
+
+Actions and dialogue:
+
+**CAMERA:**
+Start: (00:42.00) | End: (00:48.00)
+Wide shot of the vaulted cathedral nave, morning light falling through tall stained-glass windows.
+
+**LORD EDMUND (Urgent):**
+Start: (00:48.20) | End: (00:52.00)
+"We wed today, before the Hartwells can stop us."
+
+**MARGARET (Smiling):**
+Start: (00:52.40) | End: (00:54.40)
+"Then let the bells ring."
+
+**SOUND FX:**
+Start: (00:54.40) | End: (01:00.00)
+Cathedral bells begin to peal.
+
+**CAMERA:**
+Start: (01:00.00) | End: (01:14.00)
+Slow push-in on Edmund and Margaret walking together toward the altar as the bells swell, holding until cut to black.

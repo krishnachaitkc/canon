@@ -1,0 +1,25 @@
+{
+ "refers": [
+  {
+   "spelling": "Margaret",
+   "refers_to": "Margaret, the unmasked hooded figure and Edmund's bride-to-be"
+  },
+  {
+   "spelling": "Margarett",
+   "refers_to": "Edmund's spoken address to Margaret during the vows"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Margaret",
+    "Margarett"
+   ],
+   "same_entity": true,
+   "entity_type": "person",
+   "canonical": "Margaret",
+   "confidence": "high",
+   "reason": "Margaret is identified as the unmasked figure in [1] and takes Edmund's hand in [2], while Edmund addresses her as \"Margarett\" in [3] and the following line identifies her as MARGARET."
+  }
+ ]
+}

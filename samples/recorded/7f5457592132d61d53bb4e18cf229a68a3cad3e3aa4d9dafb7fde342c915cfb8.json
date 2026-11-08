@@ -1,0 +1,34 @@
+{
+ "refers": [
+  {
+   "spelling": "Hartwell",
+   "refers_to": "the Hartwell family/title and their manor/estate"
+  },
+  {
+   "spelling": "Hartley",
+   "refers_to": "the village of Hartley and its gaol"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Hartwell"
+   ],
+   "same_entity": false,
+   "entity_type": "family",
+   "canonical": "Hartwell",
+   "confidence": "high",
+   "reason": "Snippets 1-3 use Hartwell for Lord Hartwell, the Hartwell family, and their manor, all one family/estate name."
+  },
+  {
+   "spellings": [
+    "Hartley"
+   ],
+   "same_entity": false,
+   "entity_type": "place",
+   "canonical": "Hartley",
+   "confidence": "high",
+   "reason": "Snippets 3-4 use Hartley for Hartley village and its gaol, while snippets 1-3 show the Hartwells as the separate family holding the house."
+  }
+ ]
+}

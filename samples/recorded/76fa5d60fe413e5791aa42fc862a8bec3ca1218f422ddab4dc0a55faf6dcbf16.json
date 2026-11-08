@@ -1,0 +1,30 @@
+{
+ "refers": [
+  {
+   "spelling": "Thorne",
+   "refers_to": "Edmund Thorne's surname in his return and Crown-message scenes"
+  },
+  {
+   "spelling": "Thomson",
+   "refers_to": "Edmund Thomson, the Lord Edmund Margaret addresses"
+  },
+  {
+   "spelling": "Thorn",
+   "refers_to": "Edmund Thorn, returning to Ravenscourt Hall"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Thorne",
+    "Thomson",
+    "Thorn"
+   ],
+   "same_entity": true,
+   "entity_type": "person",
+   "canonical": "Thorne",
+   "confidence": "high",
+   "reason": "Snippets [1]-[5] attach all three surname spellings to the same Edmund/Lord Edmund in his return and claim scenes, and Thorne is the most frequent form."
+  }
+ ]
+}

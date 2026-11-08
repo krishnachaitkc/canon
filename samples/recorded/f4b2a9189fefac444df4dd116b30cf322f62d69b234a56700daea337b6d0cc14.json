@@ -1,0 +1,25 @@
+{
+ "refers": [
+  {
+   "spelling": "Margaret",
+   "refers_to": "a woman named Margaret, keeper of Edmund's proof and his bride"
+  },
+  {
+   "spelling": "Margarett",
+   "refers_to": "Edmund's address to the same woman, who answers as MARGARET"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Margaret",
+    "Margarett"
+   ],
+   "same_entity": true,
+   "entity_type": "person",
+   "canonical": "Margaret",
+   "confidence": "high",
+   "reason": "Margarett in [3] is Edmund addressing the woman who immediately answers as MARGARET, and [1][2] identify Margaret as the ledger keeper and bride, so the extra T is a one-off misspelling; Margaret is canonical by 7-to-1 count."
+  }
+ ]
+}

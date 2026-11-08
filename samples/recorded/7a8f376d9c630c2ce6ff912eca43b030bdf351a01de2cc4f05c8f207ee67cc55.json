@@ -1,0 +1,30 @@
+{
+ "refers": [
+  {
+   "spelling": "Ravenscar",
+   "refers_to": "Ravenscar Hall, the estate/house on the moor and its library"
+  },
+  {
+   "spelling": "Ravenscourt",
+   "refers_to": "Ravenscourt Hall, the hall Edmund Thorn calls home"
+  },
+  {
+   "spelling": "Ravensgar",
+   "refers_to": "Ravensgar Hall, the hall Lord Edmund claims by right"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Ravenscar",
+    "Ravenscourt",
+    "Ravensgar"
+   ],
+   "same_entity": true,
+   "entity_type": "place",
+   "canonical": "Ravenscar",
+   "confidence": "medium",
+   "reason": "All three are the same 'X Hall' estate: Ravenscar Hall is established in [1]-[3], while Edmund's return to Ravenscourt Hall [4] and his claim to Ravensgar Hall by right [5] point to the same hereditary hall; Ravenscar is canonical by frequency."
+  }
+ ]
+}

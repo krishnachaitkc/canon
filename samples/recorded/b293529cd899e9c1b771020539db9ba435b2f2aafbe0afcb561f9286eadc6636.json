@@ -1,0 +1,24 @@
+{
+ "characters": [
+  {
+   "labels": [
+    "HOODED FIGURE",
+    "MARGARET"
+   ],
+   "canonical": "MARGARET",
+   "intentional": true,
+   "confidence": "high",
+   "reason": "The hooded figure is explicitly unmasked as Margaret, so the concealment label hides her identity until a reveal."
+  },
+  {
+   "labels": [
+    "EDMUND",
+    "LORD EDMUND"
+   ],
+   "canonical": "EDMUND",
+   "intentional": false,
+   "confidence": "high",
+   "reason": "LORD EDMUND is the same character as EDMUND with a title added, sharing scenes and the Ravenscourt claim."
+  }
+ ]
+}

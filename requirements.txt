@@ -1,0 +1,8 @@
+pydantic>=2
+requests
+python-dotenv
+json-repair
+rapidfuzz
+pyspellchecker
+streamlit==1.67.0
+pytest

@@ -1,0 +1,30 @@
+{
+ "refers": [
+  {
+   "spelling": "Ravenscar",
+   "refers_to": "Ravenscar Hall, a moorland hall/estate"
+  },
+  {
+   "spelling": "Ravenscourt",
+   "refers_to": "Ravenscourt Hall, Edmund's home estate"
+  },
+  {
+   "spelling": "Ravensgar",
+   "refers_to": "Ravensgar Hall, the hall Lord Edmund claims by right"
+  }
+ ],
+ "groups": [
+  {
+   "spellings": [
+    "Ravenscar",
+    "Ravenscourt",
+    "Ravensgar"
+   ],
+   "same_entity": true,
+   "entity_type": "place",
+   "canonical": "Ravenscar",
+   "confidence": "high",
+   "reason": "Snippets [1]-[3] name the hall Ravenscar Hall, [4] has Edmund Thorn coming home to Ravenscourt Hall, and [5] has Lord Edmund claiming Ravensgar Hall by right while [3] labels the same episode's library as Ravenscar Hall, showing these are spelling variants of one estate."
+  }
+ ]
+}

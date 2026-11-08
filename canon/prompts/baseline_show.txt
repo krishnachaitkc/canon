@@ -1,0 +1,21 @@
+You are checking one 50-episode audio-drama script for continuity mistakes. The whole show is below, one file per episode.
+
+Return strict JSON only, in exactly this shape:
+
+{"findings": [{"kind": "name", "episode": 3, "scene": 1, "time": "00:17.20", "found": "Thomson", "suggestion": "Thorne", "detail": "one short sentence"}]}
+
+Find these four kinds and nothing else:
+
+1. kind "name": a person, family, house or place spelled more than one way. Put one spelling in "found" and the other in "suggestion".
+2. kind "speaker": one character speaking under two or more speaker labels, or one label used for two different people. Put the labels in "found" and "suggestion".
+3. kind "join": a time of day (day/night) or building type (cathedral/chapel, manor/castle, cottage/cabin) that changes across a cut the episode notes call continuous ("picks up immediately", "follows directly"). Put the first value in "found" and the second in "suggestion".
+4. kind "spelling": a misspelled word inside a spoken line. Put the misspelling in "found" and the correction in "suggestion".
+
+Rules:
+- Use the number in EPISODE NUMBER for "episode".
+- Use the scene number and the Start time when you can.
+- Only report a mistake you can point to in the text. Do not guess, and do not report style preferences.
+- Every finding needs episode and found. Leave out anything you are unsure of.
+- Return the JSON object only. No prose, no code fence, no explanation outside the JSON.
+
+Reminder: the JSON must cover all four kinds where the show has them — names, speaker labels, continuous joins, and spoken spelling. A list of names alone is not a complete answer.
