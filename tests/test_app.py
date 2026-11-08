@@ -162,6 +162,22 @@ def test_run_totals_reads_the_manifest():
     }
 
 
+def test_the_app_survives_a_build_without_progress_reporting(monkeypatch):
+    """A deploy can pair this app.py with an older canon.llm. Progress is cosmetic."""
+    from canon import llm
+
+    monkeypatch.delattr(llm, "set_progress", raising=False)
+
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    at.radio(key="input_mode").set_value("Try the sample show")
+    at.radio(key="model_choice").set_value("Code only")
+    at.button(key="run_button").click().run()
+
+    assert not at.exception
+    assert not at.error
+    assert at.session_state["canon_run"]["manifest"]["complete"] is True
+
+
 def test_the_app_runs_the_sample_offline_and_shows_tiles_and_tabs():
     at = AppTest.from_file(str(APP), default_timeout=180).run()
     at.radio(key="input_mode").set_value("Try the sample show")

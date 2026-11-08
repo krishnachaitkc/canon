@@ -111,6 +111,18 @@ def _show_error(info: ErrorInfo) -> None:
             st.code(detail, language="text")
 
 
+def _set_progress(callback) -> None:
+    """Register the live progress callback, on any build of the package.
+
+    Streamlit reruns app.py from disk but keeps imported modules in memory, so a deploy
+    can pair this file with an older `canon.llm` for a while. Progress is cosmetic; the
+    run itself must never fail because the function is missing.
+    """
+    setter = getattr(llm, "set_progress", None)
+    if setter is not None:
+        setter(callback)
+
+
 def _fail(info: ErrorInfo) -> None:
     st.session_state["canon_run"] = None
     st.session_state["canon_error"] = info.as_dict()
@@ -529,12 +541,12 @@ def _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api
                 else:
                     line.write(f"**{stage}...** · {elapsed()}")
 
-            llm.set_progress(progress)
+            _set_progress(progress)
             try:
                 with RUN_LOCK:
                     result = run(input_path, out_dir, api_key_env=api_key_env, **kwargs)
             finally:
-                llm.set_progress(None)
+                _set_progress(None)
             status.update(
                 label=f"Done in {int(time.time() - started)}s", state="complete", expanded=False
             )

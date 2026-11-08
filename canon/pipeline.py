@@ -50,6 +50,17 @@ def cost_usd(stats: dict) -> float | None:
     return round(total, 6)
 
 
+def _phase(name: str) -> None:
+    """Report a code phase if this build of llm supports it.
+
+    A deploy can pair this module with an older `canon.llm`; progress is cosmetic and
+    must never stop a run.
+    """
+    reporter = getattr(llm, "report_phase", None)
+    if reporter is not None:
+        reporter(name)
+
+
 def run(
     input_source: str,
     out_dir: str,
@@ -87,7 +98,7 @@ def run(
         "input_sha256": input_hash(input_source),
     }
     try:
-        llm.report_phase("Reading the scripts")
+        _phase("Reading the scripts")
         show = parse_show(input_source, title=title)
         index = build_index(show)
         _write_json(out / "mentions.json", [m.model_dump() for m in index.mentions])
@@ -97,11 +108,11 @@ def run(
         name_groups, apart, speaker_groups, verdicts = [], [], [], []
         findings = []
         if "names" in selected:
-            llm.report_phase("Finding name variants")
+            _phase("Finding name variants")
             candidates, threshold_log = build_candidates(index)
             _write_json(out / "candidates.json", [c.model_dump() for c in candidates])
         if "speakers" in selected:
-            llm.report_phase("Reading speaker labels")
+            _phase("Reading speaker labels")
             stats = speaker_stats(show, index)
             pairs = core_pairs(stats)
             _write_json(
@@ -114,7 +125,7 @@ def run(
                 if no_model:
                     name_groups = code_names(candidates, index)
                 else:
-                    llm.report_phase("Judging name groups")
+                    _phase("Judging name groups")
                     name_groups, apart, name_checks = judge_names(candidates, index, show, spec)
                     findings += name_checks
                 findings += name_rows(name_groups, index, show)
@@ -122,25 +133,25 @@ def run(
                 if no_model:
                     speaker_groups, checks = code_speakers(stats, show)
                 else:
-                    llm.report_phase("Judging speaker labels")
+                    _phase("Judging speaker labels")
                     speaker_groups, checks = judge_speakers(stats, show, spec)
                 findings += checks
                 findings += speaker_rows(speaker_groups, show)
 
         if "joins" in selected:
-            llm.report_phase("Checking scene joins")
+            _phase("Checking scene joins")
             findings += find_joins(show)
         if "spelling" in selected:
-            llm.report_phase("Checking spoken spelling")
+            _phase("Checking spoken spelling")
             candidates_d4 = spelling_candidates(show, index)
             if judging:
-                llm.report_phase("Judging spelling")
+                _phase("Judging spelling")
                 kept, verdicts = judge_spelling(candidates_d4, show, spec)
                 findings += kept
             else:
                 findings += candidates_d4
         if "format" in selected:
-            llm.report_phase("Checking header format")
+            _phase("Checking header format")
             findings += format_findings(input_source)
         findings = sort_and_number(findings)
 
@@ -211,4 +222,7 @@ def run(
         manifest["seconds"] = round(time.time() - started, 2)
         _write_json(out / "manifest.json", manifest)
         llm.set_run_dir(None)
-        llm.set_progress(None)
+        clear = getattr(llm, "set_progress", None)
+        if clear is not None:
+            clear(None)
+
