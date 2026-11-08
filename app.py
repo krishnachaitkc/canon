@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -512,17 +513,21 @@ def _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api
     if previous:
         st.session_state.pop(f"patch|{previous['run_id']}", None)
     problem = None
+    started = time.time()
     try:
         with st.status("Running Canon...", expanded=True) as status:
             line = st.empty()
             bar = st.progress(0.0)
 
+            def elapsed() -> str:
+                return f"{int(time.time() - started)}s"
+
             def progress(stage: str, done: int, total: int) -> None:
                 if total:
                     bar.progress(min(1.0, done / total))
-                    line.write(f"**{stage}** · {done} of {total} done")
+                    line.write(f"**{stage}** · {done} of {total} done · {elapsed()}")
                 else:
-                    line.write(f"**{stage}...**")
+                    line.write(f"**{stage}...** · {elapsed()}")
 
             llm.set_progress(progress)
             try:
@@ -530,7 +535,9 @@ def _start_run(input_mode, uploads, model_choice, custom_route, custom_base, api
                     result = run(input_path, out_dir, api_key_env=api_key_env, **kwargs)
             finally:
                 llm.set_progress(None)
-            status.update(label="Done", state="complete", expanded=False)
+            status.update(
+                label=f"Done in {int(time.time() - started)}s", state="complete", expanded=False
+            )
     except Exception as exc:
         problem = describe(exc)
     finally:
