@@ -12,7 +12,7 @@ Canon finds those slips before generation:
 
 Code finds every candidate and every location. A model only judges what code found, from snippets code picked. Code vetoes impossible merges. A person approves each fix before anything is patched.
 
-App: `<streamlit link>`  Doc: `<pdf link>`
+Prototype: this repository, with the run steps below. The solution doc is a 2-page PDF in the submission.
 
 ## Run
 
